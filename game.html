@@ -7,6 +7,7 @@
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="https://cdn.socket.io/4.6.0/socket.io.min.js"></script>
   <script src="config.js"></script>
+  <script src="effects.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); color: white; padding: 10px; padding-bottom: 100px; }
@@ -200,83 +201,6 @@
     let playerRating = parseInt(localStorage.getItem('playerRating') || '0');
     let clickTimer = null;
     let lastClickTarget = null;
-    
-    const CardEffects = {
-      damage: (target, value) => { if (!target) return {ok:false}; target.health = (target.health||1) - value; return {ok:true, destroyed:target.health<=0, msg:`${target.name} получил ${value} урона`}; },
-      heal: (target, value) => { if (!target) return {ok:false}; target.health = (target.health||0) + value; return {ok:true, msg:`${target.name} исцелён на ${value}`}; },
-      buff: (target, value, stat) => { if (!target||!stat) return {ok:false}; target[stat] = (target[stat]||0) + value; return {ok:true, msg:`${target.name}: +${value} ${stat}`}; },
-      summon: (cardId, count, row) => {
-        const faction = FACTIONS[gameState.playerFaction];
-        const template = faction?.cards?.find(c => c.id === cardId);
-        if (!template) return {ok:false, msg:'Карта не найдена'};
-        let summoned = 0;
-        for (let i=0; i<count; i++) {
-          if (gameState.playerField[row]?.length < 4) {
-            gameState.playerField[row].push({...template, instanceId: Date.now()+i});
-            summoned++;
-          }
-        }
-        return {ok:true, msg:`Призвано ${summoned} карт`};
-      },
-      draw: (count) => {
-        const draw = Math.min(count, gameState.playerDeck.length);
-        if (draw > 0) {
-          gameState.playerHand.push(...gameState.playerDeck.splice(0, draw));
-          return {ok:true, msg:`Взято ${draw} карт`};
-        }
-        return {ok:false, msg:'Колода пуста'};
-      },
-      returnToHand: (target) => {
-        if (!target) return {ok:false};
-        ['left','right'].forEach(row => {
-          const idx = gameState.playerField[row].findIndex(c => c.id === target.id);
-          if (idx > -1) {
-            gameState.playerField[row].splice(idx, 1);
-            gameState.playerHand.push(target);
-            return {ok:true, msg:`${target.name} возвращён в руку`};
-          }
-        });
-        return {ok:false};
-      },
-      destroy: (target) => {
-        if (!target) return {ok:false};
-        ['left','right'].forEach(row => {
-          const idx = gameState.playerField[row].findIndex(c => c.id === target.id);
-          if (idx > -1) {
-            const card = gameState.playerField[row].splice(idx, 1)[0];
-            gameState.playerDiscard.push(card);
-            return {ok:true, msg:`${target.name} уничтожен`};
-          }
-        });
-        return {ok:false};
-      }
-    };
-    
-    function handleCardEffect(card, context={}) {
-      if (!card?.effect) return {ok:true, msg:'Нет эффекта'};
-      const eff = card.effect;
-      
-      if (eff.action === 'damage') {
-        const enemies = [...gameState.opponentField.left, ...gameState.opponentField.right];
-        if (enemies[0]) return CardEffects.damage(enemies[0], eff.value||1);
-      }
-      else if (eff.action === 'heal') {
-        const allies = [...gameState.playerField.left, ...gameState.playerField.right];
-        if (allies[0]) return CardEffects.heal(allies[0], eff.value||2);
-      }
-      else if (eff.action === 'buff' && eff.stat) {
-        const allies = gameState.playerField[context.row]?.filter(c => c.id !== card.id) || [];
-        if (allies[0]) return CardEffects.buff(allies[0], eff.value||2, eff.stat);
-      }
-      else if (eff.action === 'summon' && eff.card) {
-        return CardEffects.summon(eff.card, eff.count||1, eff.position==='adjacent'?(context.row||'left'):'left');
-      }
-      else if (eff.action === 'draw') {
-        return CardEffects.draw(eff.value||1);
-      }
-      
-      return {ok:true, msg:'Эффект активирован'};
-    }
     
     document.addEventListener('DOMContentLoaded', () => {
       if (!gameState.playerLeader) {
@@ -491,14 +415,27 @@
       gameState.playerField[row].push(card);
       gameState.playerHand.splice(idx, 1);
       
+      // Обработка эффекта карты
       if (card.effect) {
-        const result = handleCardEffect(card, {row});
+        const result = handleCardEffect(card, {row, gameState});
         if (result?.msg) showToast(result.msg);
       }
       
-      if (card.type === 'special' || card.discardAfterUse) { gameState.playerDiscard.push(card); gameState.playerField[row].pop(); }
+      // Проверка комбо Апокалипсиса
+      const apocalypseResult = checkApocalypseCombo(gameState);
+      if (apocalypseResult.ok) {
+        showToast(apocalypseResult.msg);
+      }
       
-      calcScore(); endTurn(); renderAll(); closeModal();
+      if (card.type === 'special' || card.discardAfterUse) { 
+        gameState.playerDiscard.push(card); 
+        gameState.playerField[row].pop(); 
+      }
+      
+      calcScore(); 
+      endTurn(); 
+      renderAll(); 
+      closeModal();
       if (tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
     }
     
@@ -625,33 +562,19 @@
       
       const faction = gameState.playerFaction;
       const leaderIdx = gameState.playerLeader || 0;
-      const leader = FACTIONS[faction]?.leaders?.[leaderIdx];
       
-      if (!leader?.ability) { showToast('Способность не найдена'); return; }
-      
-      let result;
-      const abil = leader.ability;
-      
-      if (abil.type === 'damage') {
-        const enemies = [...gameState.opponentField.left, ...gameState.opponentField.right];
-        if (enemies[0]) result = CardEffects.damage(enemies[0], abil.value||3);
-      }
-      else if (abil.type === 'heal') {
-        const allies = [...gameState.playerField.left, ...gameState.playerField.right];
-        if (allies[0]) result = CardEffects.heal(allies[0], 5);
-      }
-      else if (abil.type === 'copy' || abil.type === 'counter') {
-        gameState.playerField.left.forEach(c=>{c.power+=2;c.armor+=1;});
-        gameState.playerField.right.forEach(c=>{c.power+=2;c.armor+=1;});
-        result = { ok: true, msg: 'Способность скопирована!' };
-      }
-      else { result = { ok: true, msg: abil.description || 'Способность активирована!' }; }
+      const result = handleLeaderAbility(faction, leaderIdx, gameState);
       
       if (result?.ok) {
-        showToast(result.msg); gameState.leaderUsed = true; renderLeader(); renderAll();
+        showToast(result.msg);
+        gameState.leaderUsed = true;
+        renderLeader();
+        renderAll();
         if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
-        if (isOnlineGame && roomId) socket.emit('use-leader', { roomId, ability: abil, result });
-      } else { showToast(result?.msg || 'Ошибка'); }
+        if (isOnlineGame && roomId) socket.emit('use-leader', { roomId, result });
+      } else {
+        showToast(result?.msg || 'Ошибка');
+      }
     }
     
     function selectCard(who, row, idx) {
