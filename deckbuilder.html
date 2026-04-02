@@ -49,6 +49,7 @@
     .btn-save:disabled { background: #555; color: #888; cursor: not-allowed; }
     .faction-badge { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: rgba(255,255,255,0.1); border-radius: 20px; font-size: 13px; margin-bottom: 15px; }
     .faction-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .error-msg { background: rgba(231, 76, 60, 0.2); border: 1px solid #e74c3c; padding: 15px; border-radius: 10px; margin-bottom: 20px; display: none; }
     @media (max-width: 480px) { .cards-grid { grid-template-columns: repeat(2, 1fr); } .card { min-height: 220px; } }
   </style>
 </head>
@@ -58,6 +59,8 @@
     <h2>🃏 Конструктор колоды</h2>
     <div style="width: 70px;"></div>
   </div>
+  
+  <div class="error-msg" id="errorMsg"></div>
   
   <div class="faction-badge" id="factionBadge">
     <div class="faction-dot" id="factionDot"></div>
@@ -112,20 +115,35 @@
     let currentFilter = 'all';
     let factionData = null;
     
+    console.log('🔵 FACTIONS loaded:', typeof FACTIONS);
+    console.log('🔵 selectedFaction:', selectedFaction);
+    
     document.addEventListener('DOMContentLoaded', () => {
-      initFaction();
-      loadSavedDeck();
-      renderCards();
-      updateStats();
-      setupFilters();
+      try {
+        initFaction();
+        loadSavedDeck();
+        renderCards();
+        updateStats();
+        setupFilters();
+      } catch (e) {
+        console.error('❌ Error:', e);
+        document.getElementById('errorMsg').style.display = 'block';
+        document.getElementById('errorMsg').textContent = 'Ошибка: ' + e.message;
+      }
     });
     
     function initFaction() {
+      if (typeof FACTIONS === 'undefined') {
+        throw new Error('config.js не загружен! Проверь что файл есть на GitHub');
+      }
       factionData = FACTIONS[selectedFaction];
-      if (!factionData) { alert('Ошибка: фракция не найдена!'); goBack(); return; }
+      if (!factionData) {
+        throw new Error('Фракция не найдена: ' + selectedFaction);
+      }
       document.getElementById('factionName').textContent = factionData.name;
       document.getElementById('factionDot').style.background = factionData.color;
       document.querySelector('.header h2').style.color = factionData.color;
+      console.log('✅ Faction loaded:', factionData.name, 'Cards:', factionData.cards.length);
     }
     
     async function loadSavedDeck() {
@@ -136,9 +154,10 @@
         const docSnap = await docRef.get();
         if (docSnap.exists) {
           selectedCards = docSnap.data().cards || [];
+          console.log('✅ Deck loaded:', selectedCards.length, 'cards');
         }
       } catch (e) {
-        console.error('Error loading deck:', e);
+        console.warn('⚠️ Could not load deck:', e);
       }
     }
     
@@ -150,6 +169,14 @@
     function renderCards() {
       const grid = document.getElementById('cardsGrid');
       grid.innerHTML = '';
+      
+      if (!factionData || !factionData.cards) {
+        grid.innerHTML = '<div style="color: #e74c3c; text-align: center; padding: 40px;">❌ Карты не загружены<br>Проверь config.js</div>';
+        return;
+      }
+      
+      console.log('🎴 Rendering', factionData.cards.length, 'cards');
+      
       factionData.cards.forEach(card => {
         if (currentFilter !== 'all' && card.type !== currentFilter) return;
         const cardEl = document.createElement('div');
