@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, user-scalable=0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Битва</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="https://cdn.socket.io/4.6.0/socket.io.min.js"></script>
@@ -69,7 +69,6 @@
     .modal-close { margin-top: 12px; padding: 10px; background: #e74c3c; border: none; border-radius: 8px; color: white; font-weight: 600; cursor: pointer; width: 100%; font-size: 13px; }
     .toast { position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.9); padding: 12px 20px; border-radius: 20px; font-size: 12px; z-index: 2000; opacity: 0; transition: opacity 0.2s; max-width: 85%; text-align: center; pointer-events: none; }
     .toast.show { opacity: 1; }
-    /* Tooltip для эффекта - упрощённый */
     .card-tooltip { position: fixed; background: rgba(26, 26, 46, 0.98); border: 2px solid #3498db; border-radius: 12px; padding: 15px; max-width: 250px; z-index: 3000; display: none; box-shadow: 0 10px 40px rgba(0,0,0,0.5); left: 50%; top: 50%; transform: translate(-50%, -50%); }
     .card-tooltip.active { display: block; animation: fadeIn 0.15s ease; }
     @keyframes fadeIn { from { opacity: 0; transform: translate(-50%, -40%); } to { opacity: 1; transform: translate(-50%, -50%); } }
@@ -152,7 +151,6 @@
     </div>
   </div>
   
-  <!-- Упрощённый tooltip для эффекта -->
   <div class="card-tooltip" id="cardTooltip">
     <div class="card-tooltip-title" id="tooltipTitle">Название карты</div>
     <div class="card-tooltip-effect" id="tooltipEffect">Эффект карты</div>
@@ -170,7 +168,7 @@
     const SERVER_URL = 'http://193.148.59.127:3000'; // 
     const socket = io(SERVER_URL, { transports: ['websocket', 'polling'], reconnection: true, reconnectionAttempts: 3 });
     
-    let roomId = null; // ❌ НЕ берём из localStorage - чтобы не авто-стартовало
+    let roomId = null;
     let isOnlineGame = false;
     let playerId = null;
     
@@ -183,6 +181,7 @@
     socket.on('opponent-disconnected', () => { showToast('❌ Противник вышел'); alert('Противник отключился!\nПобеда!'); if (window.opener?.updateRating) window.opener.updateRating('win'); setTimeout(() => { localStorage.removeItem('selectedFaction'); window.location.href = 'index.html'; }, 2000); });
     socket.on('error', (data) => { showToast('❌ ' + data.message); });
     
+    // === ИГРОВЫЕ ДАННЫЕ ===
     let gameState = {
       playerFaction: localStorage.getItem('selectedFaction') || 'knights',
       playerHand: [], playerDeck: [], playerDiscard: [],
@@ -197,132 +196,136 @@
     let playerRating = parseInt(localStorage.getItem('playerRating') || '0');
     let tooltipTimeout = null;
     
+    // === СИСТЕМА ЭФФЕКТОВ (упрощённая) ===
+    const Effects = {
+      damage: (target, value) => {
+        if (!target) return { ok: false };
+        target.health = (target.health || 1) - value;
+        return { ok: true, destroyed: target.health <= 0, msg: `${target.name} получил ${value} урона` };
+      },
+      heal: (target, value) => {
+        if (!target) return { ok: false };
+        target.health = (target.health || 0) + value;
+        return { ok: true, msg: `${target.name} исцелён на ${value}` };
+      },
+      buff: (target, value, stat) => {
+        if (!target || !stat) return { ok: false };
+        target[stat] = (target[stat] || 0) + value;
+        return { ok: true, msg: `${target.name}: +${value} ${stat}` };
+      },
+      summon: (cardId, count, row) => {
+        const faction = FACTIONS[gameState.playerFaction];
+        const template = faction?.cards?.find(c => c.id === cardId);
+        if (!template) return { ok: false, msg: 'Карта не найдена' };
+        let summoned = 0;
+        for (let i = 0; i < count; i++) {
+          if (gameState.playerField[row]?.length < 4) {
+            gameState.playerField[row].push({ ...template, instanceId: Date.now() + i });
+            summoned++;
+          }
+        }
+        return { ok: true, msg: `Призвано ${summoned} карт` };
+      }
+    };
+    
+    // === ИНИЦИАЛИЗАЦИЯ ===
     document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('playerRatingDisplay').textContent = '⭐ ' + playerRating;
       loadDeck();
       initGame();
       renderAll();
-      // ❌ НЕ подключаемся к комнате автоматически
     });
     
     function loadDeck() {
       const faction = gameState.playerFaction;
-      const savedDeck = localStorage.getItem(`deck_${faction}`);
-      if (savedDeck) {
-        const cardIds = JSON.parse(savedDeck);
-        gameState.playerDeck = cardIds.map(id => getCardById(id));
+      const saved = localStorage.getItem(`deck_${faction}`);
+      if (saved) {
+        const ids = JSON.parse(saved);
+        gameState.playerDeck = ids.map(id => getCardById(id));
       } else {
-        const factionData = FACTIONS[faction];
-        gameState.playerDeck = factionData.cards.slice(0, 25);
+        const data = FACTIONS[faction];
+        gameState.playerDeck = data.cards.slice(0, 25);
       }
-      shuffleArray(gameState.playerDeck);
+      shuffle(gameState.playerDeck);
       gameState.playerHand = gameState.playerDeck.splice(0, 10);
     }
     
     function initGame() {
-      const enemyFactions = ['mages', 'cultists', 'dryads'];
-      const enemyFaction = enemyFactions[Math.floor(Math.random() * enemyFactions.length)];
-      const enemyData = FACTIONS[enemyFaction];
-      gameState.opponentDeck = enemyData.cards.slice(0, 25);
-      shuffleArray(gameState.opponentDeck);
+      const factions = ['mages', 'cultists', 'dryads'];
+      const enemy = FACTIONS[factions[Math.floor(Math.random() * factions.length)]];
+      gameState.opponentDeck = enemy.cards.slice(0, 25);
+      shuffle(gameState.opponentDeck);
       gameState.opponentHand = gameState.opponentDeck.splice(0, 10);
     }
     
+    // === ОТРИСОВКА ===
     function renderAll() {
-      renderHand('player');
-      renderHand('opponent');
-      renderField('player');
-      renderField('opponent');
-      renderScores();
-      renderDeckCounts();
-      renderLeader();
-      updatePassButton();
+      renderHand('player'); renderHand('opponent');
+      renderField('player'); renderField('opponent');
+      renderScores(); renderDeckCounts(); renderLeader(); updatePassBtn();
     }
     
     function renderHand(who) {
-      const container = document.getElementById(`hand${who === 'player' ? 'Player' : 'Opponent'}`);
-      const hand = gameState[who === 'player' ? 'playerHand' : 'opponentHand'];
+      const container = document.getElementById(`hand${who==='player'?'Player':'Opponent'}`);
+      const hand = gameState[who==='player'?'playerHand':'opponentHand'];
       container.innerHTML = '';
-      hand.forEach((card, index) => {
-        const cardEl = document.createElement('div');
-        if (who === 'opponent') { cardEl.className = 'card-back'; }
-        else {
-          const typeColors = { white: '#fff', gray: '#95a5a6', purple: '#a233ff', gold: '#f1c40f', special: '#e74c3c' };
-          cardEl.className = 'hand-card';
-          cardEl.innerHTML = `<div class="hand-card-type" style="background: ${typeColors[card.type]}; color: ${['white', 'gold'].includes(card.type) ? '#333' : '#fff'}">${card.type.toUpperCase()}</div><div class="hand-card-name">${card.name}</div><div class="hand-card-power">⚔️${card.power}</div>`;
-          cardEl.onclick = () => playCard(index);
-          // ✅ Упрощённый долгий тап для эффекта
-          setupSimpleTooltip(cardEl, card);
+      hand.forEach((card, idx) => {
+        const el = document.createElement('div');
+        if (who === 'opponent') {
+          el.className = 'card-back';
+        } else {
+          const colors = { white: '#fff', gray: '#95a5a6', purple: '#a233ff', gold: '#f1c40f', special: '#e74c3c' };
+          el.className = 'hand-card';
+          el.innerHTML = `<div class="hand-card-type" style="background:${colors[card.type]};color:${['white','gold'].includes(card.type)?'#333':'#fff'}">${card.type.toUpperCase()}</div><div class="hand-card-name">${card.name}</div><div class="hand-card-power">⚔️${card.power}</div>`;
+          el.onclick = () => playCard(idx);
+          setupTooltip(el, card);
         }
-        container.appendChild(cardEl);
+        container.appendChild(el);
       });
     }
     
     function renderField(who) {
-      const leftRow = document.getElementById(`${who}LeftRow`);
-      const rightRow = document.getElementById(`${who}RightRow`);
-      const field = gameState[who === 'player' ? 'playerField' : 'opponentField'];
-      leftRow.querySelectorAll('.field-card').forEach(el => el.remove());
-      rightRow.querySelectorAll('.field-card').forEach(el => el.remove());
-      field.left.forEach((card, index) => { leftRow.appendChild(createFieldCard(card, who, 'left', index)); });
-      field.right.forEach((card, index) => { rightRow.appendChild(createFieldCard(card, who, 'right', index)); });
+      ['left','right'].forEach(row => {
+        const el = document.getElementById(`${who}${row==='left'?'Left':'Right'}Row`);
+        el.querySelectorAll('.field-card').forEach(c => c.remove());
+        gameState[who==='player'?'playerField':'opponentField'][row].forEach((card, idx) => {
+          el.appendChild(createFieldCard(card, who, row, idx));
+        });
+      });
     }
     
-    function createFieldCard(card, who, row, index) {
-      const cardEl = document.createElement('div');
-      cardEl.className = 'field-card';
-      cardEl.style.borderColor = who === 'player' ? FACTIONS[gameState.playerFaction].color : '#666';
-      const typeColors = { white: '#fff', gray: '#95a5a6', purple: '#a233ff', gold: '#f1c40f', special: '#e74c3c' };
-      const effectText = card.effect ? (card.effect.description || 'Есть эффект') : 'Нет эффекта';
-      cardEl.innerHTML = `<div class="field-card-type" style="background: ${typeColors[card.type]}; color: ${['white', 'gold'].includes(card.type) ? '#333' : '#fff'}">${card.type.toUpperCase()}</div><div class="field-card-name">${card.name}</div><div class="field-card-power">⚔️${card.power}</div><div class="field-card-stats"><span>🛡️${card.armor}</span><span>❤️${card.health}</span></div><div class="field-card-effect">${effectText.substring(0, 30)}${effectText.length > 30 ? '...' : ''}</div>`;
-      if (who === 'player') {
-        cardEl.onclick = () => selectFieldCard(who, row, index);
-        setupSimpleTooltip(cardEl, card);
-      }
-      return cardEl;
+    function createFieldCard(card, who, row, idx) {
+      const el = document.createElement('div');
+      el.className = 'field-card';
+      el.style.borderColor = who==='player' ? FACTIONS[gameState.playerFaction].color : '#666';
+      const colors = { white: '#fff', gray: '#95a5a6', purple: '#a233ff', gold: '#f1c40f', special: '#e74c3c' };
+      const eff = card.effect ? (card.effect.description||'Есть эффект') : 'Нет эффекта';
+      el.innerHTML = `<div class="field-card-type" style="background:${colors[card.type]};color:${['white','gold'].includes(card.type)?'#333':'#fff'}">${card.type.toUpperCase()}</div><div class="field-card-name">${card.name}</div><div class="field-card-power">⚔️${card.power}</div><div class="field-card-stats"><span>🛡️${card.armor}</span><span>❤️${card.health}</span></div><div class="field-card-effect">${eff.substring(0,30)}${eff.length>30?'...':''}</div>`;
+      if (who === 'player') { el.onclick = () => selectCard(who,row,idx); setupTooltip(el, card); }
+      return el;
     }
     
-    // ✅ ПРОСТОЙ ТООЛТИП ДЛЯ ЭФФЕКТА (работает на мобильных)
-    function setupSimpleTooltip(element, card) {
-      let pressTimer = null;
-      const tooltip = document.getElementById('cardTooltip');
-      
-      const showEffect = () => {
-        const effectText = card.effect ? (card.effect.description || 'Есть эффект') : 'Нет эффекта';
+    function setupTooltip(el, card) {
+      let timer;
+      const tt = document.getElementById('cardTooltip');
+      const show = () => {
+        const eff = card.effect ? (card.effect.description||'Есть эффект') : 'Нет эффекта';
         document.getElementById('tooltipTitle').textContent = card.name;
-        document.getElementById('tooltipEffect').textContent = effectText;
-        tooltip.classList.add('active');
+        document.getElementById('tooltipEffect').textContent = eff;
+        tt.classList.add('active');
         if (tg.HapticFeedback) tg.HapticFeedback.selectionChanged();
       };
-      
-      const hideEffect = () => {
-        tooltip.classList.remove('active');
-      };
-      
-      // Touch события
-      element.addEventListener('touchstart', (e) => {
-        e.preventDefault();
-        pressTimer = setTimeout(showEffect, 400); // 400мс для долгого тапа
-      }, { passive: false });
-      
-      element.addEventListener('touchend', () => {
-        clearTimeout(pressTimer);
-      });
-      
-      element.addEventListener('touchmove', hideEffect);
-      element.addEventListener('touchcancel', hideEffect);
-      
-      // Mouse события (для ПК)
-      element.addEventListener('mousedown', () => {
-        pressTimer = setTimeout(showEffect, 400);
-      });
-      element.addEventListener('mouseup', () => clearTimeout(pressTimer));
-      element.addEventListener('mouseleave', hideEffect);
+      const hide = () => { tt.classList.remove('active'); };
+      el.addEventListener('touchstart', (e) => { e.preventDefault(); timer = setTimeout(show, 400); }, {passive:false});
+      el.addEventListener('touchend', () => clearTimeout(timer));
+      el.addEventListener('touchmove', hide);
+      el.addEventListener('touchcancel', hide);
+      el.addEventListener('mousedown', () => timer = setTimeout(show, 400));
+      el.addEventListener('mouseup', () => clearTimeout(timer));
+      el.addEventListener('mouseleave', hide);
     }
     
-    function hideTooltip() {
-      document.getElementById('cardTooltip').classList.remove('active');
-    }
+    function hideTooltip() { document.getElementById('cardTooltip').classList.remove('active'); }
     
     function renderScores() {
       document.getElementById('scorePlayer').textContent = gameState.playerScore;
@@ -339,49 +342,75 @@
     }
     
     function renderLeader() {
-      const leaderEl = document.getElementById('leaderPlayer');
-      if (gameState.leaderUsed) { leaderEl.style.opacity = '0.5'; leaderEl.style.cursor = 'not-allowed'; }
+      const el = document.getElementById('leaderPlayer');
+      if (gameState.leaderUsed) { el.style.opacity = '0.5'; el.style.cursor = 'not-allowed'; }
     }
     
-    function updatePassButton() {
-      const passBtn = document.getElementById('passBtn');
-      if (gameState.playerPass) { passBtn.classList.add('used'); passBtn.textContent = 'PASS ✓'; passBtn.disabled = true; }
-      else { passBtn.classList.remove('used'); passBtn.textContent = 'PASS'; passBtn.disabled = false; }
+    function updatePassBtn() {
+      const btn = document.getElementById('passBtn');
+      if (gameState.playerPass) { btn.classList.add('used'); btn.textContent = 'PASS ✓'; btn.disabled = true; }
+      else { btn.classList.remove('used'); btn.textContent = 'PASS'; btn.disabled = false; }
     }
     
-    function playCard(handIndex) {
+    // === ИГРОВАЯ ЛОГИКА ===
+    function playCard(idx) {
       if (gameState.currentPlayer !== 'player' || gameState.gameOver) { showToast('Не ваш ход!'); return; }
-      // Если открыт тултип - не играем карту
       if (document.getElementById('cardTooltip').classList.contains('active')) return;
-      
-      const card = gameState.playerHand[handIndex];
-      
-      if (isOnlineGame && roomId) {
-        socket.emit('play-card', { roomId, card: { id: card.id, name: card.name }, handIndex });
-      }
-      
+      const card = gameState.playerHand[idx];
+      if (isOnlineGame && roomId) socket.emit('play-card', { roomId, card: {id:card.id,name:card.name}, idx });
       showModal('Выберите ряд', [
-        { label: 'Левый ряд', action: () => placeCard(card, handIndex, 'left') },
-        { label: 'Правый ряд', action: () => placeCard(card, handIndex, 'right') }
+        { label: 'Левый ряд', action: () => placeCard(card, idx, 'left') },
+        { label: 'Правый ряд', action: () => placeCard(card, idx, 'right') }
       ]);
     }
     
-    function placeCard(card, handIndex, row) {
+    function placeCard(card, idx, row) {
       if (gameState.playerField[row].length >= 4) { showToast('Ряд заполнен!'); return; }
       gameState.playerField[row].push(card);
-      gameState.playerHand.splice(handIndex, 1);
+      gameState.playerHand.splice(idx, 1);
       if (card.type === 'special' || card.discardAfterUse) { gameState.playerDiscard.push(card); gameState.playerField[row].pop(); }
-      calculateScore();
-      endTurn();
-      renderAll();
-      closeModal();
-      hideTooltip();
+      
+      // ✅ ОБРАБОТКА ЭФФЕКТОВ КАРТЫ
+      if (card.effect?.type === 'onPlay') handleEffect(card, row);
+      
+      calcScore(); endTurn(); renderAll(); closeModal(); hideTooltip();
       if (tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
     }
     
-    function calculateScore() {
-      gameState.playerScore = [...gameState.playerField.left, ...gameState.playerField.right].reduce((sum, card) => sum + (card.power || 0), 0);
-      gameState.opponentScore = [...gameState.opponentField.left, ...gameState.opponentField.right].reduce((sum, card) => sum + (card.power || 0), 0);
+    function handleEffect(card, row) {
+      const eff = card.effect;
+      if (!eff?.action) return;
+      
+      if (eff.action === 'damage' && eff.target === 'enemy_unit') {
+        const enemies = [...gameState.opponentField.left, ...gameState.opponentField.right];
+        if (enemies[0]) {
+          const r = Effects.damage(enemies[0], eff.value||1);
+          if (r?.msg) showToast(r.msg);
+        }
+      }
+      else if (eff.action === 'heal' && eff.target === 'own_unit') {
+        const allies = [...gameState.playerField.left, ...gameState.playerField.right];
+        if (allies[0]) {
+          const r = Effects.heal(allies[0], eff.value||2);
+          if (r?.msg) showToast(r.msg);
+        }
+      }
+      else if (eff.action === 'buff' && eff.stat === 'power') {
+        const allies = gameState.playerField[row].filter(c => c.id !== card.id);
+        if (allies[0]) {
+          const r = Effects.buff(allies[0], eff.value||2, 'power');
+          if (r?.msg) showToast(r.msg);
+        }
+      }
+      else if (eff.action === 'summon' && eff.card) {
+        const r = Effects.summon(eff.card, eff.count||1, eff.position==='adjacent'?row:'left');
+        if (r?.msg) showToast(r.msg);
+      }
+    }
+    
+    function calcScore() {
+      gameState.playerScore = [...gameState.playerField.left, ...gameState.playerField.right].reduce((s,c)=>s+(c.power||0),0);
+      gameState.opponentScore = [...gameState.opponentField.left, ...gameState.opponentField.right].reduce((s,c)=>s+(c.power||0),0);
     }
     
     function endTurn() {
@@ -392,132 +421,104 @@
     
     function opponentTurn() {
       if (gameState.gameOver) return;
-      const shouldPass = shouldOpponentPass();
+      const shouldPass = [...gameState.opponentField.left,...gameState.opponentField.right].reduce((s,c)=>s+(c.power||0),0) > [...gameState.playerField.left,...gameState.playerField.right].reduce((s,c)=>s+(c.power||0),0) && (gameState.opponentHand.length <= 3 || gameState.opponentField.left.length+gameState.opponentField.right.length >= 7);
       if (shouldPass && !gameState.opponentPass) {
-        gameState.opponentPass = true;
-        showToast('Противник пропустил ход!');
-        if (gameState.playerPass) setTimeout(() => endRound(), 1000);
+        gameState.opponentPass = true; showToast('Противник пропустил ход!');
+        if (gameState.playerPass) setTimeout(endRound, 1000);
       } else if (gameState.opponentHand.length > 0) {
-        const handIndex = Math.floor(Math.random() * gameState.opponentHand.length);
-        const card = gameState.opponentHand[handIndex];
-        const leftCount = gameState.opponentField.left.length;
-        const rightCount = gameState.opponentField.right.length;
-        let row = leftCount <= rightCount ? 'left' : 'right';
+        const idx = Math.floor(Math.random()*gameState.opponentHand.length);
+        const card = gameState.opponentHand[idx];
+        const row = gameState.opponentField.left.length <= gameState.opponentField.right.length ? 'left' : 'right';
         if (gameState.opponentField[row].length < 4) {
           gameState.opponentField[row].push(card);
-          gameState.opponentHand.splice(handIndex, 1);
+          gameState.opponentHand.splice(idx, 1);
           if (card.type === 'special' || card.discardAfterUse) { gameState.opponentDiscard.push(card); gameState.opponentField[row].pop(); }
-          calculateScore();
-          showToast('Противник сыграл карту');
+          calcScore(); showToast('Противник сыграл карту');
         }
       }
-      gameState.currentPlayer = 'player';
-      renderAll();
-    }
-    
-    function shouldOpponentPass() {
-      const opponentPower = [...gameState.opponentField.left, ...gameState.opponentField.right].reduce((sum, card) => sum + (card.power || 0), 0);
-      const playerPower = [...gameState.playerField.left, ...gameState.playerField.right].reduce((sum, card) => sum + (card.power || 0), 0);
-      const fieldFull = gameState.opponentField.left.length + gameState.opponentField.right.length >= 7;
-      return opponentPower > playerPower && (gameState.opponentHand.length <= 3 || fieldFull);
+      gameState.currentPlayer = 'player'; renderAll();
     }
     
     function passTurn() {
       if (gameState.playerPass || gameState.gameOver) return;
-      gameState.playerPass = true;
-      showToast('Вы пропустили ход!');
-      
-      if (isOnlineGame && roomId) {
-        socket.emit('pass-turn', { roomId });
-      }
-      
-      if (gameState.opponentPass) { setTimeout(() => endRound(), 1000); }
+      gameState.playerPass = true; showToast('Вы пропустили ход!');
+      if (isOnlineGame && roomId) socket.emit('pass-turn', { roomId });
+      if (gameState.opponentPass) setTimeout(endRound, 1000);
       else { gameState.currentPlayer = 'opponent'; setTimeout(opponentTurn, 1000); }
       renderAll();
     }
     
-    // ✅ ИСПРАВЛЕННАЯ КНОПКА "СДАТЬСЯ"
     function surrenderGame() {
       if (gameState.gameOver) return;
-      
-      // Показываем подтверждение
-      if (confirm('Вы уверены что хотите сдаться?\n\n⚠️ -4 очка рейтинга')) {
-        gameState.gameOver = true;
-        showToast('Вы сдались: -4 очка рейтинга');
-        
-        // Обновляем рейтинг в index.html (если открыт)
-        if (window.opener && typeof window.opener.updateRating === 'function') {
-          window.opener.updateRating('surrender');
-        } else {
-          // Если index.html не открыт - обновляем локально
-          let currentRating = parseInt(localStorage.getItem('playerRating') || '0');
-          currentRating = Math.max(0, currentRating - 4);
-          localStorage.setItem('playerRating', currentRating);
-        }
-        
-        // Возврат в меню
-        setTimeout(() => {
-          localStorage.removeItem('selectedFaction');
-          localStorage.removeItem('roomId');
-          window.location.href = 'index.html';
-        }, 1500);
+      if (confirm('Сдаться?\n\n⚠️ -4 очка рейтинга')) {
+        gameState.gameOver = true; showToast('Вы сдались: -4 очка рейтинга');
+        if (window.opener?.updateRating) window.opener.updateRating('surrender');
+        else { let r = parseInt(localStorage.getItem('playerRating')||'0'); localStorage.setItem('playerRating', String(Math.max(0, r-4))); }
+        setTimeout(() => { localStorage.removeItem('selectedFaction'); localStorage.removeItem('roomId'); window.location.href = 'index.html'; }, 1500);
       }
     }
     
     function endRound() {
       if (gameState.gameOver) return;
       showToast(`Раунд ${gameState.round} завершён!`);
-      gameState.playerField.left = gameState.playerField.left.filter(c => c.persistBetweenRounds);
-      gameState.playerField.right = gameState.playerField.right.filter(c => c.persistBetweenRounds);
+      gameState.playerField.left = gameState.playerField.left.filter(c=>c.persistBetweenRounds);
+      gameState.playerField.right = gameState.playerField.right.filter(c=>c.persistBetweenRounds);
       gameState.playerDiscard.push(...gameState.playerField.left, ...gameState.playerField.right);
-      gameState.opponentField.left = [];
-      gameState.opponentField.right = [];
-      const newCards = Math.min(2, gameState.playerDeck.length);
-      if (newCards > 0) gameState.playerHand.push(...gameState.playerDeck.splice(0, newCards));
-      gameState.playerPass = false;
-      gameState.opponentPass = false;
-      gameState.round++;
-      setTimeout(() => {
-        if (gameState.round > 3 || gameState.playerDeck.length === 0) { endGame(); }
-        else { showToast(`Раунд ${gameState.round} начался!`); renderAll(); }
-      }, 2000);
+      gameState.opponentField.left = []; gameState.opponentField.right = [];
+      const draw = Math.min(2, gameState.playerDeck.length);
+      if (draw > 0) gameState.playerHand.push(...gameState.playerDeck.splice(0, draw));
+      gameState.playerPass = false; gameState.opponentPass = false; gameState.round++;
+      setTimeout(() => { if (gameState.round > 3 || gameState.playerDeck.length === 0) endGame(); else { showToast(`Раунд ${gameState.round} начался!`); renderAll(); } }, 2000);
     }
     
     function endGame() {
       gameState.gameOver = true;
-      let message = '', emoji = '', result = '';
-      if (gameState.playerScore > gameState.opponentScore) { message = 'ПОБЕДА!'; emoji = '🏆'; result = 'win'; showToast('+10 очков рейтинга'); }
-      else if (gameState.playerScore < gameState.opponentScore) { message = 'ПОРАЖЕНИЕ!'; emoji = '💀'; result = 'loss'; showToast('-5 очков рейтинга'); }
-      else { message = 'НИЧЬЯ!'; emoji = '🤝'; result = 'draw'; showToast('Рейтинг не изменён'); }
-      
-      // Обновляем рейтинг
-      if (window.opener && typeof window.opener.updateRating === 'function' && result !== 'draw') {
-        window.opener.updateRating(result);
-      } else {
-        let currentRating = parseInt(localStorage.getItem('playerRating') || '0');
-        if (result === 'win') currentRating += 10;
-        else if (result === 'loss') currentRating = Math.max(0, currentRating - 5);
-        localStorage.setItem('playerRating', currentRating);
-      }
-      
-      alert(`${emoji} ${message}\n\nВаш счёт: ${gameState.playerScore}\nСчёт противника: ${gameState.opponentScore}`);
-      localStorage.removeItem('selectedFaction');
-      localStorage.removeItem('roomId');
+      let msg='', emoji='', result='';
+      if (gameState.playerScore > gameState.opponentScore) { msg='ПОБЕДА!'; emoji='🏆'; result='win'; showToast('+10 очков рейтинга'); }
+      else if (gameState.playerScore < gameState.opponentScore) { msg='ПОРАЖЕНИЕ!'; emoji='💀'; result='loss'; showToast('-5 очков рейтинга'); }
+      else { msg='НИЧЬЯ!'; emoji='🤝'; result='draw'; showToast('Рейтинг не изменён'); }
+      if (window.opener?.updateRating && result!=='draw') window.opener.updateRating(result);
+      else { let r = parseInt(localStorage.getItem('playerRating')||'0'); if (result==='win') r+=10; else if (result==='loss') r=Math.max(0,r-5); localStorage.setItem('playerRating', String(r)); }
+      alert(`${emoji} ${msg}\n\nВаш счёт: ${gameState.playerScore}\nСчёт противника: ${gameState.opponentScore}`);
+      localStorage.removeItem('selectedFaction'); localStorage.removeItem('roomId');
       window.location.href = 'index.html';
     }
     
+    // === СПОСОБНОСТЬ ЛИДЕРА ===
     function useLeaderAbility() {
       if (gameState.leaderUsed || gameState.gameOver) { showToast('Способность уже использована!'); return; }
-      showToast('Способность лидера активирована!');
-      gameState.leaderUsed = true;
-      renderLeader();
-      if (isOnlineGame && roomId) socket.emit('use-leader', { roomId });
-      if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+      const faction = gameState.playerFaction;
+      const leader = FACTIONS[faction]?.leaders?.[0];
+      if (!leader?.ability) { showToast('Способность не найдена'); return; }
+      
+      let result;
+      const abil = leader.ability;
+      
+      if (abil.type === 'damage') {
+        const enemies = [...gameState.opponentField.left, ...gameState.opponentField.right];
+        if (enemies[0]) result = Effects.damage(enemies[0], abil.value||3);
+      }
+      else if (abil.type === 'heal') {
+        const allies = [...gameState.playerField.left, ...gameState.playerField.right];
+        if (allies[0]) result = Effects.heal(allies[0], 5);
+      }
+      else if (abil.type === 'copy' || abil.type === 'counter') {
+        gameState.playerField.left.forEach(c=>{c.power+=2;c.armor+=1;});
+        gameState.playerField.right.forEach(c=>{c.power+=2;c.armor+=1;});
+        result = { ok: true, msg: 'Способность скопирована!' };
+      }
+      else { result = { ok: true, msg: abil.description || 'Способность активирована!' }; }
+      
+      if (result?.ok) {
+        showToast(result.msg); gameState.leaderUsed = true; renderLeader(); renderAll();
+        if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+        if (isOnlineGame && roomId) socket.emit('use-leader', { roomId, ability: abil, result });
+      } else { showToast(result?.msg || 'Ошибка'); }
     }
     
-    function selectFieldCard(who, row, index) {
+    function selectCard(who, row, idx) {
       if (document.getElementById('cardTooltip').classList.contains('active')) return;
-      const card = gameState.playerField[row][index];
+      const card = gameState.playerField[row][idx];
       showToast(`${card.name}\n⚔️${card.power} 🛡️${card.armor} ❤️${card.health}`);
     }
     
@@ -537,25 +538,29 @@
     
     function closeModal() { document.getElementById('cardModal').classList.remove('active'); }
     
-    function showToast(message) {
-      const toast = document.getElementById('toast');
-      toast.textContent = message;
-      toast.classList.add('show');
-      setTimeout(() => toast.classList.remove('show'), 2000);
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg; t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 2000);
     }
     
-    function shuffleArray(array) { for (let i = array.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [array[i], array[j]] = [array[j], array[i]]; } }
+    function shuffle(arr) { for (let i=arr.length-1; i>0; i--) { const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; } }
     
-    function getCardById(cardId) { for (const factionKey in FACTIONS) { const card = FACTIONS[factionKey].cards.find(c => c.id === cardId); if (card) return { ...card, faction: factionKey }; } return null; }
+    function getCardById(id) {
+      for (const fk in FACTIONS) {
+        const c = FACTIONS[fk].cards.find(x=>x.id===id);
+        if (c) return { ...c, faction: fk };
+      }
+      return null;
+    }
     
-    // Экспорт функций для index.html
+    // Для index.html
     window.updateRating = function(result) {
-      let currentRating = parseInt(localStorage.getItem('playerRating') || '0');
-      if (result === 'win') currentRating += 10;
-      else if (result === 'loss') currentRating = Math.max(0, currentRating - 5);
-      else if (result === 'surrender') currentRating = Math.max(0, currentRating - 4);
-      localStorage.setItem('playerRating', currentRating);
-      document.getElementById('playerRatingDisplay').textContent = '⭐ ' + currentRating;
+      let r = parseInt(localStorage.getItem('playerRating')||'0');
+      if (result==='win') r+=10; else if (result==='loss') r=Math.max(0,r-5); else if (result==='surrender') r=Math.max(0,r-4);
+      localStorage.setItem('playerRating', String(r));
+      const el = document.getElementById('playerRatingDisplay');
+      if (el) el.textContent = '⭐ ' + r;
     };
   </script>
 </body>
