@@ -7,25 +7,12 @@
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="config.js"></script>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
     body { 
       font-family: Arial, sans-serif; 
-      background: #1a1a2e; 
+      background: linear-gradient(135deg, #1a1a2e, #16213e); 
       color: white; 
       padding: 20px;
-      min-height: 100vh;
-    }
-    .error { 
-      background: #e74c3c; 
-      padding: 20px; 
-      border-radius: 10px; 
-      margin: 20px 0;
-      font-family: monospace;
-    }
-    .loading {
       text-align: center;
-      padding: 40px;
-      font-size: 20px;
     }
     button {
       padding: 15px 30px;
@@ -40,66 +27,16 @@
   </style>
 </head>
 <body>
-  <div id="loading" class="loading">⏳ Загрузка...</div>
-  <div id="error" style="display:none;"></div>
-  <div id="content" style="display:none;">
-    <h1>⚔️ Карточная Битва</h1>
-    <p style="margin:20px 0;">Игра готова!</p>
-    <button onclick="startGame()">🎮 Начать игру</button>
-    <button onclick="goBack()">← Назад</button>
-  </div>
-
+  <h1>⚔️ Карточная Битва</h1>
+  <p style="margin:20px 0;">Игра работает!</p>
+  <button onclick="alert('Игра в разработке!')">🎮 Играть</button>
+  <button onclick="window.location.href='index.html'">← Назад</button>
+  
   <script>
-    console.log('🔵 Game.html loaded');
-    
-    window.onerror = function(msg, url, line) {
-      showError('JavaScript ошибка: ' + msg + '\nСтрока: ' + line);
-      return false;
-    };
-    
-    function showError(msg) {
-      console.error('❌', msg);
-      document.getElementById('loading').style.display = 'none';
-      document.getElementById('content').style.display = 'none';
-      const errorDiv = document.getElementById('error');
-      errorDiv.style.display = 'block';
-      errorDiv.innerHTML = '<h2>⚠️ Ошибка загрузки</h2><pre>' + msg + '</pre>';
-    }
-    
-    function startGame() {
-      window.location.href = 'game-full.html';
-    }
-    
-    function goBack() {
-      window.location.href = 'index.html';
-    }
-    
-    // Инициализация
-    try {
-      console.log('🔵 Checking config...');
-      
-      if (typeof FACTIONS === 'undefined') {
-        throw new Error('config.js не загружен! FACTIONS не определён');
-      }
-      
-      console.log('✅ FACTIONS loaded:', Object.keys(FACTIONS).length, 'factions');
-      
-      const tg = window.Telegram.WebApp;
-      if (tg) {
-        tg.expand();
-        tg.ready();
-        console.log('✅ Telegram Web App ready');
-      }
-      
-      // Показываем интерфейс
-      document.getElementById('loading').style.display = 'none';
-      document.getElementById('content').style.display = 'block';
-      
-      console.log('✅ Game interface loaded successfully');
-      
-    } catch (e) {
-      showError(e.message);
-    }
+    const tg = window.Telegram.WebApp;
+    tg.expand();
+    tg.ready();
+    console.log('✅ Game loaded');
   </script>
 </body>
 </html>
