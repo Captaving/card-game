@@ -13,7 +13,16 @@
       color: white; 
       padding: 20px;
       text-align: center;
+      min-height: 100vh;
     }
+    .menu-box {
+      max-width: 400px;
+      margin: 50px auto;
+      padding: 30px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 15px;
+    }
+    h1 { margin-bottom: 20px; }
     button {
       padding: 15px 30px;
       margin: 10px;
@@ -23,20 +32,41 @@
       color: white;
       border: none;
       border-radius: 8px;
+      width: 100%;
     }
+    button:active { transform: scale(0.98); }
+    .success { background: #2ecc71; }
+    .warning { background: #f39c12; }
+    .info { background: #926eae; }
   </style>
 </head>
 <body>
-  <h1>⚔️ Карточная Битва</h1>
-  <p style="margin:20px 0;">Игра работает!</p>
-  <button onclick="alert('Игра в разработке!')">🎮 Играть</button>
-  <button onclick="window.location.href='index.html'">← Назад</button>
+  <div class="menu-box">
+    <h1>⚔️ Карточная Битва</h1>
+    <p style="margin:20px 0; color:#888;">Полная версия игры</p>
+    
+    <button class="success" onclick="alert('🎮 Игра с ботом будет доступна скоро!')">
+      🤖 Игра с ботом
+    </button>
+    
+    <button class="info" onclick="alert('🌐 Онлайн режим будет доступен скоро!')">
+      🌐 Онлайн игра
+    </button>
+    
+    <button class="warning" onclick="window.location.href='deckbuilder.html'">
+      🃏 Собрать колоду
+    </button>
+    
+    <button onclick="window.location.href='index.html'">
+      ← Назад в меню
+    </button>
+  </div>
   
   <script>
     const tg = window.Telegram.WebApp;
     tg.expand();
     tg.ready();
-    console.log('✅ Game loaded');
+    console.log('✅ Game menu loaded');
   </script>
 </body>
 </html>
