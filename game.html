@@ -2,15 +2,18 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, user-scalable=0">
   <title>Битва</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="https://cdn.socket.io/4.6.0/socket.io.min.js"></script>
   <script src="config.js"></script>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); color: white; padding: 10px; padding-bottom: 100px; }
+    * { box-sizing: border-box; margin: 0; padding: 0; touch-action: manipulation; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); color: white; padding: 10px; padding-bottom: 100px; user-select: none; -webkit-user-select: none; }
     .top-bar { display: flex; justify-content: space-between; align-items: center; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 10px; margin-bottom: 10px; }
     .rating-display { font-size: 12px; color: #f1c40f; font-weight: 700; }
+    .online-indicator { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #2ecc71; }
+    .online-dot { width: 8px; height: 8px; border-radius: 50%; background: #2ecc71; }
     .opponent-zone { display: flex; align-items: flex-start; margin-bottom: 10px; }
     .leader-opponent { width: 45px; height: 45px; border-radius: 8px; background: linear-gradient(135deg, #666, #333); border: 2px solid #555; display: flex; align-items: center; justify-content: center; font-size: 20px; margin-right: 8px; }
     .hand-opponent { flex: 1; display: flex; gap: 4px; overflow-x: auto; padding: 5px 0; height: 55px; }
@@ -25,9 +28,7 @@
     .rows-container { display: flex; gap: 6px; }
     .row { display: flex; flex-direction: column; gap: 6px; padding: 8px; border-radius: 8px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); min-width: 85px; }
     .row-label { font-size: 9px; text-align: center; color: #666; margin-bottom: 3px; text-transform: uppercase; font-weight: 600; }
-    .field-card { width: 75px; min-height: 100px; border-radius: 8px; background: #2c3e50; border: 2px solid rgba(255,255,255,0.3); display: flex; flex-direction: column; padding: 6px; position: relative; cursor: pointer; }
-    .field-card:hover { transform: translateY(-3px); box-shadow: 0 3px 15px rgba(0,0,0,0.4); }
-    .field-card.selected { border-color: #f1c40f; box-shadow: 0 0 10px rgba(241, 196, 15, 0.6); }
+    .field-card { width: 75px; min-height: 100px; border-radius: 8px; background: #2c3e50; border: 2px solid rgba(255,255,255,0.3); display: flex; flex-direction: column; padding: 6px; position: relative; }
     .field-card-type { font-size: 7px; padding: 2px 4px; border-radius: 3px; text-align: center; font-weight: 700; text-transform: uppercase; margin-bottom: 4px; }
     .field-card-type.white { background: #fff; color: #333; }
     .field-card-type.gray { background: #95a5a6; color: #fff; }
@@ -54,44 +55,40 @@
     .leader-player { width: 45px; height: 45px; border-radius: 8px; background: linear-gradient(135deg, #3498db, #2980b9); border: 2px solid #3498db; display: flex; align-items: center; justify-content: center; font-size: 20px; margin-right: 8px; cursor: pointer; position: relative; }
     .leader-player::after { content: '⚡'; position: absolute; top: -4px; right: -4px; background: #f1c40f; border-radius: 50%; width: 18px; height: 18px; font-size: 10px; display: flex; align-items: center; justify-content: center; }
     .hand-player { flex: 1; display: flex; gap: 5px; overflow-x: auto; padding: 8px 0; height: 80px; }
-    .hand-card { width: 50px; height: 68px; border-radius: 6px; background: #2c3e50; border: 2px solid rgba(255,255,255,0.2); flex-shrink: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 8px; cursor: pointer; }
-    .hand-card:hover { border-color: #3498db; transform: translateY(-8px); }
+    .hand-card { width: 50px; height: 68px; border-radius: 6px; background: #2c3e50; border: 2px solid rgba(255,255,255,0.2); flex-shrink: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 8px; }
     .hand-card-type { font-size: 6px; padding: 2px 3px; border-radius: 2px; margin-bottom: 2px; }
     .hand-card-name { font-size: 7px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; }
     .hand-card-power { font-size: 12px; font-weight: 700; color: #fff; margin-top: 2px; }
-    .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center; padding: 20px; }
+    .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); z-index: 1000; align-items: center; justify-content: center; padding: 20px; }
     .modal.active { display: flex; }
     .modal-content { background: #1a1a2e; border-radius: 15px; padding: 20px; max-width: 400px; width: 100%; max-height: 80vh; overflow-y: auto; }
     .modal-title { font-size: 16px; font-weight: 600; margin-bottom: 12px; text-align: center; }
     .modal-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 8px; }
     .modal-card { padding: 8px; border-radius: 8px; background: #2c3e50; border: 2px solid transparent; cursor: pointer; text-align: center; font-size: 12px; }
-    .modal-card:hover { border-color: #3498db; }
+    .modal-card:active { background: rgba(52, 152, 219, 0.3); }
     .modal-close { margin-top: 12px; padding: 10px; background: #e74c3c; border: none; border-radius: 8px; color: white; font-weight: 600; cursor: pointer; width: 100%; font-size: 13px; }
-    .toast { position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); padding: 10px 20px; border-radius: 20px; font-size: 12px; z-index: 2000; opacity: 0; transition: opacity 0.3s; max-width: 80%; text-align: center; }
+    .toast { position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.9); padding: 12px 20px; border-radius: 20px; font-size: 12px; z-index: 2000; opacity: 0; transition: opacity 0.2s; max-width: 85%; text-align: center; pointer-events: none; }
     .toast.show { opacity: 1; }
-    /* Tooltip для эффекта при долгом тапе */
-    .card-tooltip {
-      position: fixed;
-      background: rgba(0, 0, 0, 0.95);
-      border: 2px solid #3498db;
-      border-radius: 10px;
-      padding: 12px;
-      max-width: 280px;
-      z-index: 3000;
-      display: none;
-      pointer-events: none;
-      box-shadow: 0 5px 30px rgba(0,0,0,0.5);
-    }
-    .card-tooltip.active { display: block; }
-    .card-tooltip-title { font-size: 13px; font-weight: 700; color: #3498db; margin-bottom: 6px; }
-    .card-tooltip-effect { font-size: 11px; color: #ccc; line-height: 1.4; }
+    /* Tooltip для эффекта - упрощённый */
+    .card-tooltip { position: fixed; background: rgba(26, 26, 46, 0.98); border: 2px solid #3498db; border-radius: 12px; padding: 15px; max-width: 250px; z-index: 3000; display: none; box-shadow: 0 10px 40px rgba(0,0,0,0.5); left: 50%; top: 50%; transform: translate(-50%, -50%); }
+    .card-tooltip.active { display: block; animation: fadeIn 0.15s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translate(-50%, -40%); } to { opacity: 1; transform: translate(-50%, -50%); } }
+    .card-tooltip-title { font-size: 14px; font-weight: 700; color: #3498db; margin-bottom: 8px; text-align: center; }
+    .card-tooltip-effect { font-size: 12px; color: #ddd; line-height: 1.4; text-align: center; }
+    .tooltip-close { margin-top: 12px; padding: 8px; background: rgba(231, 76, 60, 0.2); border: none; border-radius: 6px; color: #e74c3c; font-size: 11px; cursor: pointer; width: 100%; }
     @media (max-width: 480px) { .field-card { width: 70px; min-height: 95px; } .row { min-width: 75px; } }
   </style>
 </head>
 <body>
   <div class="top-bar">
-    <div style="font-size: 12px; color: #888;">Рейтинг:</div>
-    <div class="rating-display" id="playerRatingDisplay">⭐ 0</div>
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <div style="font-size: 12px; color: #888;">Рейтинг:</div>
+      <div class="rating-display" id="playerRatingDisplay">⭐ 0</div>
+    </div>
+    <div class="online-indicator" id="onlineIndicator" style="display:none;">
+      <div class="online-dot"></div>
+      <span>Онлайн</span>
+    </div>
   </div>
   
   <div class="opponent-zone">
@@ -155,10 +152,11 @@
     </div>
   </div>
   
-  <!-- Tooltip для эффекта -->
+  <!-- Упрощённый tooltip для эффекта -->
   <div class="card-tooltip" id="cardTooltip">
-    <div class="card-tooltip-title" id="tooltipTitle"></div>
-    <div class="card-tooltip-effect" id="tooltipEffect"></div>
+    <div class="card-tooltip-title" id="tooltipTitle">Название карты</div>
+    <div class="card-tooltip-effect" id="tooltipEffect">Эффект карты</div>
+    <button class="tooltip-close" onclick="hideTooltip()">✕ Закрыть</button>
   </div>
   
   <div class="toast" id="toast"></div>
@@ -168,8 +166,26 @@
     tg.expand();
     tg.ready();
     
+    // === ПОДКЛЮЧЕНИЕ К СЕРВЕРУ ===
+    const SERVER_URL = 'http://193.148.59.127:3000'; // 
+    const socket = io(SERVER_URL, { transports: ['websocket', 'polling'], reconnection: true, reconnectionAttempts: 3 });
+    
+    let roomId = null; // ❌ НЕ берём из localStorage - чтобы не авто-стартовало
+    let isOnlineGame = false;
+    let playerId = null;
+    
+    socket.on('connect', () => { console.log('✅ Connected:', socket.id); playerId = socket.id; document.getElementById('onlineIndicator').style.display = 'flex'; });
+    socket.on('disconnect', () => { console.log('❌ Disconnected'); document.getElementById('onlineIndicator').style.display = 'none'; });
+    socket.on('room-created', (data) => { roomId = data.roomId; showToast(`🏠 Комната: ${roomId}`); });
+    socket.on('game-start', () => { showToast('🎮 Игра началась!'); isOnlineGame = true; });
+    socket.on('opponent-move', (data) => { console.log('👤 Opponent move'); renderAll(); });
+    socket.on('opponent-pass', () => { showToast('⏭️ Противник пропустил ход'); gameState.opponentPass = true; if (gameState.playerPass) endRound(); renderAll(); });
+    socket.on('opponent-disconnected', () => { showToast('❌ Противник вышел'); alert('Противник отключился!\nПобеда!'); if (window.opener?.updateRating) window.opener.updateRating('win'); setTimeout(() => { localStorage.removeItem('selectedFaction'); window.location.href = 'index.html'; }, 2000); });
+    socket.on('error', (data) => { showToast('❌ ' + data.message); });
+    
     let gameState = {
-      playerFaction: 'knights', playerHand: [], playerDeck: [], playerDiscard: [],
+      playerFaction: localStorage.getItem('selectedFaction') || 'knights',
+      playerHand: [], playerDeck: [], playerDiscard: [],
       playerField: { left: [], right: [] },
       opponentHand: [], opponentDeck: [], opponentDiscard: [],
       opponentField: { left: [], right: [] },
@@ -178,21 +194,19 @@
       round: 1, leaderUsed: false, currentPlayer: 'player', gameOver: false
     };
     
-    let playerRating = 0;
-    let longPressTimer = null;
-    let longPressActive = false;
+    let playerRating = parseInt(localStorage.getItem('playerRating') || '0');
+    let tooltipTimeout = null;
     
     document.addEventListener('DOMContentLoaded', () => {
-      playerRating = parseInt(localStorage.getItem('playerRating') || '0');
       document.getElementById('playerRatingDisplay').textContent = '⭐ ' + playerRating;
       loadDeck();
       initGame();
       renderAll();
+      // ❌ НЕ подключаемся к комнате автоматически
     });
     
     function loadDeck() {
-      const faction = localStorage.getItem('selectedFaction') || 'knights';
-      gameState.playerFaction = faction;
+      const faction = gameState.playerFaction;
       const savedDeck = localStorage.getItem(`deck_${faction}`);
       if (savedDeck) {
         const cardIds = JSON.parse(savedDeck);
@@ -231,19 +245,14 @@
       container.innerHTML = '';
       hand.forEach((card, index) => {
         const cardEl = document.createElement('div');
-        if (who === 'opponent') {
-          cardEl.className = 'card-back';
-        } else {
+        if (who === 'opponent') { cardEl.className = 'card-back'; }
+        else {
           const typeColors = { white: '#fff', gray: '#95a5a6', purple: '#a233ff', gold: '#f1c40f', special: '#e74c3c' };
           cardEl.className = 'hand-card';
-          cardEl.innerHTML = `
-            <div class="hand-card-type" style="background: ${typeColors[card.type]}; color: ${['white', 'gold'].includes(card.type) ? '#333' : '#fff'}">${card.type.toUpperCase()}</div>
-            <div class="hand-card-name">${card.name}</div>
-            <div class="hand-card-power">⚔️${card.power}</div>
-          `;
+          cardEl.innerHTML = `<div class="hand-card-type" style="background: ${typeColors[card.type]}; color: ${['white', 'gold'].includes(card.type) ? '#333' : '#fff'}">${card.type.toUpperCase()}</div><div class="hand-card-name">${card.name}</div><div class="hand-card-power">⚔️${card.power}</div>`;
           cardEl.onclick = () => playCard(index);
-          // Долгий тап для эффекта
-          setupLongPress(cardEl, card);
+          // ✅ Упрощённый долгий тап для эффекта
+          setupSimpleTooltip(cardEl, card);
         }
         container.appendChild(cardEl);
       });
@@ -255,111 +264,71 @@
       const field = gameState[who === 'player' ? 'playerField' : 'opponentField'];
       leftRow.querySelectorAll('.field-card').forEach(el => el.remove());
       rightRow.querySelectorAll('.field-card').forEach(el => el.remove());
-      field.left.forEach((card, index) => {
-        const cardEl = createFieldCard(card, who, 'left', index);
-        leftRow.appendChild(cardEl);
-      });
-      field.right.forEach((card, index) => {
-        const cardEl = createFieldCard(card, who, 'right', index);
-        rightRow.appendChild(cardEl);
-      });
+      field.left.forEach((card, index) => { leftRow.appendChild(createFieldCard(card, who, 'left', index)); });
+      field.right.forEach((card, index) => { rightRow.appendChild(createFieldCard(card, who, 'right', index)); });
     }
     
     function createFieldCard(card, who, row, index) {
       const cardEl = document.createElement('div');
       cardEl.className = 'field-card';
-      const factionColor = FACTIONS[gameState.playerFaction].color;
-      cardEl.style.borderColor = who === 'player' ? factionColor : '#666';
+      cardEl.style.borderColor = who === 'player' ? FACTIONS[gameState.playerFaction].color : '#666';
       const typeColors = { white: '#fff', gray: '#95a5a6', purple: '#a233ff', gold: '#f1c40f', special: '#e74c3c' };
       const effectText = card.effect ? (card.effect.description || 'Есть эффект') : 'Нет эффекта';
-      cardEl.innerHTML = `
-        <div class="field-card-type" style="background: ${typeColors[card.type]}; color: ${['white', 'gold'].includes(card.type) ? '#333' : '#fff'}">${card.type.toUpperCase()}</div>
-        <div class="field-card-name">${card.name}</div>
-        <div class="field-card-power">⚔️${card.power}</div>
-        <div class="field-card-stats">
-          <span>🛡️${card.armor}</span>
-          <span>❤️${card.health}</span>
-        </div>
-        <div class="field-card-effect">${effectText.substring(0, 30)}${effectText.length > 30 ? '...' : ''}</div>
-      `;
+      cardEl.innerHTML = `<div class="field-card-type" style="background: ${typeColors[card.type]}; color: ${['white', 'gold'].includes(card.type) ? '#333' : '#fff'}">${card.type.toUpperCase()}</div><div class="field-card-name">${card.name}</div><div class="field-card-power">⚔️${card.power}</div><div class="field-card-stats"><span>🛡️${card.armor}</span><span>❤️${card.health}</span></div><div class="field-card-effect">${effectText.substring(0, 30)}${effectText.length > 30 ? '...' : ''}</div>`;
       if (who === 'player') {
         cardEl.onclick = () => selectFieldCard(who, row, index);
-        setupLongPress(cardEl, card);
+        setupSimpleTooltip(cardEl, card);
       }
       return cardEl;
     }
     
-    // === ДОЛГИЙ ТАП ДЛЯ ЭФФЕКТА ===
-    function setupLongPress(element, card) {
+    // ✅ ПРОСТОЙ ТООЛТИП ДЛЯ ЭФФЕКТА (работает на мобильных)
+    function setupSimpleTooltip(element, card) {
+      let pressTimer = null;
       const tooltip = document.getElementById('cardTooltip');
       
-      const showTooltip = (e) => {
-        e.preventDefault();
-        longPressActive = true;
+      const showEffect = () => {
         const effectText = card.effect ? (card.effect.description || 'Есть эффект') : 'Нет эффекта';
         document.getElementById('tooltipTitle').textContent = card.name;
         document.getElementById('tooltipEffect').textContent = effectText;
-        
-        // Позиция tooltip
-        let x, y;
-        if (e.touches) {
-          x = e.touches[0].clientX;
-          y = e.touches[0].clientY - 150;
-        } else {
-          x = e.clientX;
-          y = e.clientY - 150;
-        }
-        
-        tooltip.style.left = Math.min(x - 140, window.innerWidth - 300) + 'px';
-        tooltip.style.top = Math.max(y, 50) + 'px';
         tooltip.classList.add('active');
-        
         if (tg.HapticFeedback) tg.HapticFeedback.selectionChanged();
       };
       
-      const hideTooltip = () => {
-        longPressActive = false;
+      const hideEffect = () => {
         tooltip.classList.remove('active');
       };
       
-      // Touch события (телефон)
+      // Touch события
       element.addEventListener('touchstart', (e) => {
-        longPressTimer = setTimeout(() => showTooltip(e), 500);
-      }, { passive: true });
+        e.preventDefault();
+        pressTimer = setTimeout(showEffect, 400); // 400мс для долгого тапа
+      }, { passive: false });
       
       element.addEventListener('touchend', () => {
-        clearTimeout(longPressTimer);
-        if (!longPressActive) {
-          // Короткий тап — обычное действие
-        }
-        hideTooltip();
+        clearTimeout(pressTimer);
       });
       
-      element.addEventListener('touchmove', hideTooltip);
+      element.addEventListener('touchmove', hideEffect);
+      element.addEventListener('touchcancel', hideEffect);
       
-      // Mouse события (компьютер)
-      element.addEventListener('mousedown', (e) => {
-        longPressTimer = setTimeout(() => showTooltip(e), 500);
+      // Mouse события (для ПК)
+      element.addEventListener('mousedown', () => {
+        pressTimer = setTimeout(showEffect, 400);
       });
-      
-      element.addEventListener('mouseup', () => {
-        clearTimeout(longPressTimer);
-        hideTooltip();
-      });
-      
-      element.addEventListener('mouseleave', hideTooltip);
+      element.addEventListener('mouseup', () => clearTimeout(pressTimer));
+      element.addEventListener('mouseleave', hideEffect);
+    }
+    
+    function hideTooltip() {
+      document.getElementById('cardTooltip').classList.remove('active');
     }
     
     function renderScores() {
       document.getElementById('scorePlayer').textContent = gameState.playerScore;
       document.getElementById('scoreOpponent').textContent = gameState.opponentScore;
-      if (gameState.playerScore > gameState.opponentScore) {
-        document.getElementById('scorePlayer').classList.add('win');
-        document.getElementById('scoreOpponent').classList.add('lose');
-      } else if (gameState.playerScore < gameState.opponentScore) {
-        document.getElementById('scorePlayer').classList.add('lose');
-        document.getElementById('scoreOpponent').classList.add('win');
-      }
+      if (gameState.playerScore > gameState.opponentScore) { document.getElementById('scorePlayer').classList.add('win'); document.getElementById('scoreOpponent').classList.add('lose'); }
+      else if (gameState.playerScore < gameState.opponentScore) { document.getElementById('scorePlayer').classList.add('lose'); document.getElementById('scoreOpponent').classList.add('win'); }
     }
     
     function renderDeckCounts() {
@@ -371,31 +340,26 @@
     
     function renderLeader() {
       const leaderEl = document.getElementById('leaderPlayer');
-      if (gameState.leaderUsed) {
-        leaderEl.style.opacity = '0.5';
-        leaderEl.style.cursor = 'not-allowed';
-      }
+      if (gameState.leaderUsed) { leaderEl.style.opacity = '0.5'; leaderEl.style.cursor = 'not-allowed'; }
     }
     
     function updatePassButton() {
       const passBtn = document.getElementById('passBtn');
-      if (gameState.playerPass) {
-        passBtn.classList.add('used');
-        passBtn.textContent = 'PASS ✓';
-        passBtn.disabled = true;
-      } else {
-        passBtn.classList.remove('used');
-        passBtn.textContent = 'PASS';
-        passBtn.disabled = false;
-      }
+      if (gameState.playerPass) { passBtn.classList.add('used'); passBtn.textContent = 'PASS ✓'; passBtn.disabled = true; }
+      else { passBtn.classList.remove('used'); passBtn.textContent = 'PASS'; passBtn.disabled = false; }
     }
     
     function playCard(handIndex) {
-      if (gameState.currentPlayer !== 'player' || gameState.gameOver || longPressActive) {
-        if (!longPressActive) showToast('Не ваш ход!');
-        return;
-      }
+      if (gameState.currentPlayer !== 'player' || gameState.gameOver) { showToast('Не ваш ход!'); return; }
+      // Если открыт тултип - не играем карту
+      if (document.getElementById('cardTooltip').classList.contains('active')) return;
+      
       const card = gameState.playerHand[handIndex];
+      
+      if (isOnlineGame && roomId) {
+        socket.emit('play-card', { roomId, card: { id: card.id, name: card.name }, handIndex });
+      }
+      
       showModal('Выберите ряд', [
         { label: 'Левый ряд', action: () => placeCard(card, handIndex, 'left') },
         { label: 'Правый ряд', action: () => placeCard(card, handIndex, 'right') }
@@ -403,28 +367,21 @@
     }
     
     function placeCard(card, handIndex, row) {
-      if (gameState.playerField[row].length >= 4) {
-        showToast('Ряд заполнен!');
-        return;
-      }
+      if (gameState.playerField[row].length >= 4) { showToast('Ряд заполнен!'); return; }
       gameState.playerField[row].push(card);
       gameState.playerHand.splice(handIndex, 1);
-      if (card.type === 'special' || card.discardAfterUse) {
-        gameState.playerDiscard.push(card);
-        gameState.playerField[row].pop();
-      }
+      if (card.type === 'special' || card.discardAfterUse) { gameState.playerDiscard.push(card); gameState.playerField[row].pop(); }
       calculateScore();
       endTurn();
       renderAll();
       closeModal();
+      hideTooltip();
       if (tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
     }
     
     function calculateScore() {
-      const playerScore = [...gameState.playerField.left, ...gameState.playerField.right].reduce((sum, card) => sum + (card.power || 0), 0);
-      const opponentScore = [...gameState.opponentField.left, ...gameState.opponentField.right].reduce((sum, card) => sum + (card.power || 0), 0);
-      gameState.playerScore = playerScore;
-      gameState.opponentScore = opponentScore;
+      gameState.playerScore = [...gameState.playerField.left, ...gameState.playerField.right].reduce((sum, card) => sum + (card.power || 0), 0);
+      gameState.opponentScore = [...gameState.opponentField.left, ...gameState.opponentField.right].reduce((sum, card) => sum + (card.power || 0), 0);
     }
     
     function endTurn() {
@@ -445,17 +402,11 @@
         const card = gameState.opponentHand[handIndex];
         const leftCount = gameState.opponentField.left.length;
         const rightCount = gameState.opponentField.right.length;
-        let row = 'left';
-        if (leftCount >= 4) row = 'right';
-        else if (rightCount >= 4) row = 'left';
-        else row = leftCount <= rightCount ? 'left' : 'right';
+        let row = leftCount <= rightCount ? 'left' : 'right';
         if (gameState.opponentField[row].length < 4) {
           gameState.opponentField[row].push(card);
           gameState.opponentHand.splice(handIndex, 1);
-          if (card.type === 'special' || card.discardAfterUse) {
-            gameState.opponentDiscard.push(card);
-            gameState.opponentField[row].pop();
-          }
+          if (card.type === 'special' || card.discardAfterUse) { gameState.opponentDiscard.push(card); gameState.opponentField[row].pop(); }
           calculateScore();
           showToast('Противник сыграл карту');
         }
@@ -465,34 +416,51 @@
     }
     
     function shouldOpponentPass() {
-      const opponentTotalPower = [...gameState.opponentField.left, ...gameState.opponentField.right].reduce((sum, card) => sum + (card.power || 0), 0);
-      const playerTotalPower = [...gameState.playerField.left, ...gameState.playerField.right].reduce((sum, card) => sum + (card.power || 0), 0);
-      const opponentFieldFull = gameState.opponentField.left.length + gameState.opponentField.right.length >= 7;
-      return opponentTotalPower > playerTotalPower && (gameState.opponentHand.length <= 3 || opponentFieldFull);
+      const opponentPower = [...gameState.opponentField.left, ...gameState.opponentField.right].reduce((sum, card) => sum + (card.power || 0), 0);
+      const playerPower = [...gameState.playerField.left, ...gameState.playerField.right].reduce((sum, card) => sum + (card.power || 0), 0);
+      const fieldFull = gameState.opponentField.left.length + gameState.opponentField.right.length >= 7;
+      return opponentPower > playerPower && (gameState.opponentHand.length <= 3 || fieldFull);
     }
     
     function passTurn() {
       if (gameState.playerPass || gameState.gameOver) return;
       gameState.playerPass = true;
       showToast('Вы пропустили ход!');
-      if (gameState.opponentPass) {
-        setTimeout(() => endRound(), 1000);
-      } else {
-        gameState.currentPlayer = 'opponent';
-        setTimeout(opponentTurn, 1000);
+      
+      if (isOnlineGame && roomId) {
+        socket.emit('pass-turn', { roomId });
       }
+      
+      if (gameState.opponentPass) { setTimeout(() => endRound(), 1000); }
+      else { gameState.currentPlayer = 'opponent'; setTimeout(opponentTurn, 1000); }
       renderAll();
     }
     
+    // ✅ ИСПРАВЛЕННАЯ КНОПКА "СДАТЬСЯ"
     function surrenderGame() {
       if (gameState.gameOver) return;
-      if (confirm('Вы уверены что хотите сдаться?\n\n-4 очка рейтинга')) {
+      
+      // Показываем подтверждение
+      if (confirm('Вы уверены что хотите сдаться?\n\n⚠️ -4 очка рейтинга')) {
         gameState.gameOver = true;
         showToast('Вы сдались: -4 очка рейтинга');
-        if (window.opener && window.opener.updateRating) {
+        
+        // Обновляем рейтинг в index.html (если открыт)
+        if (window.opener && typeof window.opener.updateRating === 'function') {
           window.opener.updateRating('surrender');
+        } else {
+          // Если index.html не открыт - обновляем локально
+          let currentRating = parseInt(localStorage.getItem('playerRating') || '0');
+          currentRating = Math.max(0, currentRating - 4);
+          localStorage.setItem('playerRating', currentRating);
         }
-        setTimeout(() => { window.location.href = 'index.html'; }, 1500);
+        
+        // Возврат в меню
+        setTimeout(() => {
+          localStorage.removeItem('selectedFaction');
+          localStorage.removeItem('roomId');
+          window.location.href = 'index.html';
+        }, 1500);
       }
     }
     
@@ -501,8 +469,7 @@
       showToast(`Раунд ${gameState.round} завершён!`);
       gameState.playerField.left = gameState.playerField.left.filter(c => c.persistBetweenRounds);
       gameState.playerField.right = gameState.playerField.right.filter(c => c.persistBetweenRounds);
-      const playerDiscardedCards = [...gameState.playerField.left, ...gameState.playerField.right];
-      gameState.playerDiscard.push(...playerDiscardedCards);
+      gameState.playerDiscard.push(...gameState.playerField.left, ...gameState.playerField.right);
       gameState.opponentField.left = [];
       gameState.opponentField.right = [];
       const newCards = Math.min(2, gameState.playerDeck.length);
@@ -511,48 +478,45 @@
       gameState.opponentPass = false;
       gameState.round++;
       setTimeout(() => {
-        if (gameState.round > 3 || gameState.playerDeck.length === 0) {
-          endGame();
-        } else {
-          showToast(`Раунд ${gameState.round} начался!`);
-          renderAll();
-        }
+        if (gameState.round > 3 || gameState.playerDeck.length === 0) { endGame(); }
+        else { showToast(`Раунд ${gameState.round} начался!`); renderAll(); }
       }, 2000);
     }
     
     function endGame() {
       gameState.gameOver = true;
       let message = '', emoji = '', result = '';
-      if (gameState.playerScore > gameState.opponentScore) {
-        message = 'ПОБЕДА!'; emoji = '🏆'; result = 'win';
-        showToast('+10 очков рейтинга');
-      } else if (gameState.playerScore < gameState.opponentScore) {
-        message = 'ПОРАЖЕНИЕ!'; emoji = '💀'; result = 'loss';
-        showToast('-5 очков рейтинга');
-      } else {
-        message = 'НИЧЬЯ!'; emoji = '🤝'; result = 'draw';
-        showToast('Рейтинг не изменён');
-      }
-      if (window.opener && window.opener.updateRating && result !== 'draw') {
+      if (gameState.playerScore > gameState.opponentScore) { message = 'ПОБЕДА!'; emoji = '🏆'; result = 'win'; showToast('+10 очков рейтинга'); }
+      else if (gameState.playerScore < gameState.opponentScore) { message = 'ПОРАЖЕНИЕ!'; emoji = '💀'; result = 'loss'; showToast('-5 очков рейтинга'); }
+      else { message = 'НИЧЬЯ!'; emoji = '🤝'; result = 'draw'; showToast('Рейтинг не изменён'); }
+      
+      // Обновляем рейтинг
+      if (window.opener && typeof window.opener.updateRating === 'function' && result !== 'draw') {
         window.opener.updateRating(result);
+      } else {
+        let currentRating = parseInt(localStorage.getItem('playerRating') || '0');
+        if (result === 'win') currentRating += 10;
+        else if (result === 'loss') currentRating = Math.max(0, currentRating - 5);
+        localStorage.setItem('playerRating', currentRating);
       }
-      alert(`${emoji} ${message}\n\nВаш счёт: ${gameState.playerScore}\nСчёт противника: ${gameState.opponentScore}\n\nСпасибо за игру!`);
+      
+      alert(`${emoji} ${message}\n\nВаш счёт: ${gameState.playerScore}\nСчёт противника: ${gameState.opponentScore}`);
+      localStorage.removeItem('selectedFaction');
+      localStorage.removeItem('roomId');
       window.location.href = 'index.html';
     }
     
     function useLeaderAbility() {
-      if (gameState.leaderUsed || gameState.gameOver) {
-        showToast('Способность уже использована!');
-        return;
-      }
+      if (gameState.leaderUsed || gameState.gameOver) { showToast('Способность уже использована!'); return; }
       showToast('Способность лидера активирована!');
       gameState.leaderUsed = true;
       renderLeader();
+      if (isOnlineGame && roomId) socket.emit('use-leader', { roomId });
       if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
     }
     
     function selectFieldCard(who, row, index) {
-      if (longPressActive) return;
+      if (document.getElementById('cardTooltip').classList.contains('active')) return;
       const card = gameState.playerField[row][index];
       showToast(`${card.name}\n⚔️${card.power} 🛡️${card.armor} ❤️${card.health}`);
     }
@@ -565,15 +529,13 @@
         const btn = document.createElement('div');
         btn.className = 'modal-card';
         btn.textContent = opt.label;
-        btn.onclick = opt.action;
+        btn.onclick = () => { opt.action(); closeModal(); };
         container.appendChild(btn);
       });
       document.getElementById('cardModal').classList.add('active');
     }
     
-    function closeModal() {
-      document.getElementById('cardModal').classList.remove('active');
-    }
+    function closeModal() { document.getElementById('cardModal').classList.remove('active'); }
     
     function showToast(message) {
       const toast = document.getElementById('toast');
@@ -582,92 +544,19 @@
       setTimeout(() => toast.classList.remove('show'), 2000);
     }
     
-    function shuffleArray(array) {
-      for (let i = array.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [array[i], array[j]] = [array[j], array[i]];
-      }
-    }
+    function shuffleArray(array) { for (let i = array.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [array[i], array[j]] = [array[j], array[i]]; } }
     
-    function getCardById(cardId) {
-      for (const factionKey in FACTIONS) {
-        const faction = FACTIONS[factionKey];
-        const card = faction.cards.find(c => c.id === cardId);
-        if (card) return { ...card, faction: factionKey };
-      }
-      return null;
-    }
+    function getCardById(cardId) { for (const factionKey in FACTIONS) { const card = FACTIONS[factionKey].cards.find(c => c.id === cardId); if (card) return { ...card, faction: factionKey }; } return null; }
+    
+    // Экспорт функций для index.html
+    window.updateRating = function(result) {
+      let currentRating = parseInt(localStorage.getItem('playerRating') || '0');
+      if (result === 'win') currentRating += 10;
+      else if (result === 'loss') currentRating = Math.max(0, currentRating - 5);
+      else if (result === 'surrender') currentRating = Math.max(0, currentRating - 4);
+      localStorage.setItem('playerRating', currentRating);
+      document.getElementById('playerRatingDisplay').textContent = '⭐ ' + currentRating;
+    };
   </script>
 </body>
 </html>
-// === ПОДКЛЮЧЕНИЕ К СЕРВЕРУ ===
-const SERVER_URL = 'http://твой-IP:3000'; // ЗАМЕНИ на свой IP!
-const socket = io(SERVER_URL, {
-  transports: ['websocket', 'polling'],
-  reconnection: true,
-  reconnectionAttempts: 5
-});
-
-let roomId = null;
-let isOnline = false;
-let playerId = null;
-
-// События Socket.io
-socket.on('connect', () => {
-  console.log('✅ Подключено к серверу:', socket.id);
-  playerId = socket.id;
-  isOnline = true;
-  showToast('🟢 Подключено к серверу');
-});
-
-socket.on('disconnect', () => {
-  console.log('❌ Отключено от сервера');
-  isOnline = false;
-  showToast('🔴 Потеряно соединение');
-});
-
-socket.on('room-created', (data) => {
-  roomId = data.roomId;
-  showToast(`🏠 Комната создана: ${roomId}`);
-  showRoomCode(roomId);
-});
-
-socket.on('game-start', (data) => {
-  showToast('🎮 Игра началась!');
-  isOnline = true;
-  // Синхронизация состояния
-  if (data.gameState) {
-    // Можно обновить gameState из data.gameState
-  }
-});
-
-socket.on('opponent-move', (data) => {
-  // Ход противника
-  console.log('👤 Противник сыграл:', data);
-  // Обнови поле противника
-  renderAll();
-});
-
-socket.on('opponent-pass', () => {
-  showToast('⏭️ Противник пропустил ход');
-  gameState.opponentPass = true;
-  if (gameState.playerPass) endRound();
-  renderAll();
-});
-
-socket.on('opponent-disconnected', () => {
-  showToast('❌ Противник вышел из игры');
-  alert('Противник отключился!\n\nВам засчитана победа.');
-  if (window.opener && window.opener.updateRating) {
-    window.opener.updateRating('win');
-  }
-  setTimeout(() => { window.location.href = 'index.html'; }, 2000);
-});
-
-socket.on('game-result', (data) => {
-  console.log('🏁 Результат:', data);
-});
-
-socket.on('error', (data) => {
-  showToast('❌ Ошибка: ' + data.message);
-});
