@@ -5,9 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Карточная Битва</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"></script>
+  <script src="config.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-    
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
@@ -15,202 +17,322 @@
       min-height: 100vh;
       display: flex;
       flex-direction: column;
-      align-items: center;
-      padding: 20px;
-    }
-    
-    .header {
-      text-align: center;
-      padding: 20px 0;
-      margin-bottom: 30px;
-    }
-    
-    .header h1 {
-      font-size: 26px;
-      font-weight: 700;
-      margin-bottom: 8px;
-      background: linear-gradient(90deg, #3498db, #926eae);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-    
-    .header p {
-      color: #888;
-      font-size: 14px;
-    }
-    
-    .faction-btn {
-      width: 100%;
-      max-width: 400px;
-      padding: 16px 20px;
-      margin: 8px 0;
-      border: none;
-      border-radius: 12px;
-      background: rgba(44, 62, 80, 0.6);
-      color: white;
-      font-size: 16px;
-      font-weight: 500;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      transition: transform 0.1s, box-shadow 0.2s;
-      backdrop-filter: blur(10px);
-    }
-    
-    .faction-btn:active { transform: scale(0.98); }
-    
-    .faction-btn.knights { border-left: 4px solid #3498db; background: linear-gradient(90deg, rgba(52,152,219,0.15), rgba(44, 62, 80, 0.6)); }
-    .faction-btn.mages { border-left: 4px solid #926eae; background: linear-gradient(90deg, rgba(146,110,174,0.15), rgba(44, 62, 80, 0.6)); }
-    .faction-btn.cultists { border-left: 4px solid #555; background: linear-gradient(90deg, rgba(85,85,85,0.3), rgba(44, 62, 80, 0.6)); }
-    .faction-btn.dryads { border-left: 4px solid #2ecc71; background: linear-gradient(90deg, rgba(46,204,113,0.15), rgba(44, 62, 80, 0.6)); }
-    
-    .deck-btn {
-      width: 100%;
-      max-width: 400px;
-      padding: 16px 20px;
-      margin: 25px 0 15px;
-      border: 2px solid #3498db;
-      border-radius: 12px;
-      background: rgba(52, 152, 219, 0.1);
-      color: #3498db;
-      font-size: 16px;
-      font-weight: 700;
-      cursor: pointer;
-      transition: all 0.2s;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-    }
-    
-    .deck-btn:active { transform: scale(0.98); background: rgba(52, 152, 219, 0.2); }
-    
-    .card-preview {
-      width: 100%;
-      max-width: 300px;
-      margin-top: 20px;
       padding: 15px;
-      border-radius: 12px;
-      background: rgba(44, 62, 80, 0.5);
-      border: 2px solid rgba(255,255,255,0.1);
-      backdrop-filter: blur(10px);
     }
-    
-    .card-type {
-      padding: 5px 10px;
-      border-radius: 6px;
-      font-size: 11px;
-      margin-bottom: 10px;
-      text-align: center;
-      font-weight: 700;
-      text-transform: uppercase;
-    }
-    
-    .card-type.white { background: #fff; color: #333; }
-    .card-type.gray { background: #95a5a6; color: #fff; }
-    .card-type.purple { background: #a233ff; color: #fff; }
-    .card-type.gold { background: #f1c40f; color: #333; }
-    .card-type.special { background: #e74c3c; color: #fff; }
-    
-    .card-name { font-weight: 700; margin: 10px 0; font-size: 17px; }
-    
-    .card-stats { display: flex; gap: 15px; margin: 10px 0; font-size: 14px; }
-    .card-stats span { display: flex; align-items: center; gap: 5px; }
-    
-    .card-influence { color: #f1c40f; margin-top: 12px; font-size: 13px; font-weight: 600; }
-    .card-effect { font-size: 12px; color: #888; margin-top: 10px; line-height: 1.4; min-height: 32px; }
+    .header { text-align: center; padding: 15px 0; margin-bottom: 20px; }
+    .header h1 { font-size: 24px; font-weight: 700; margin-bottom: 5px; background: linear-gradient(90deg, #3498db, #926eae); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .player-info { display: flex; align-items: center; gap: 12px; padding: 12px; background: rgba(255,255,255,0.05); border-radius: 12px; margin-bottom: 20px; }
+    .player-avatar { width: 50px; height: 50px; border-radius: 50%; background: linear-gradient(135deg, #3498db, #926eae); display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 700; }
+    .player-details { flex: 1; }
+    .player-name { font-size: 16px; font-weight: 600; margin-bottom: 3px; }
+    .player-rating { font-size: 14px; color: #f1c40f; font-weight: 600; }
+    .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; }
+    .stat-box { padding: 12px; background: rgba(255,255,255,0.05); border-radius: 10px; text-align: center; }
+    .stat-value { font-size: 20px; font-weight: 700; margin-bottom: 3px; }
+    .stat-label { font-size: 11px; color: #888; }
+    .stat-value.wins { color: #2ecc71; }
+    .stat-value.losses { color: #e74c3c; }
+    .stat-value.rating { color: #f1c40f; }
+    .menu-buttons { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+    .menu-btn { padding: 16px 20px; border: none; border-radius: 12px; background: rgba(52, 152, 219, 0.15); color: white; font-size: 16px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 12px; transition: all 0.2s; }
+    .menu-btn:active { transform: scale(0.98); }
+    .menu-btn.primary { background: linear-gradient(135deg, #3498db, #2980b9); }
+    .menu-btn.success { background: linear-gradient(135deg, #2ecc71, #27ae60); }
+    .menu-btn.warning { background: linear-gradient(135deg, #f39c12, #d68910); }
+    .menu-btn.info { background: linear-gradient(135deg, #926eae, #8e44ad); }
+    .faction-btn { width: 100%; padding: 14px 18px; margin: 6px 0; border: none; border-radius: 12px; background: rgba(44, 62, 80, 0.6); color: white; font-size: 15px; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 10px; }
+    .faction-btn:active { transform: scale(0.98); }
+    .faction-btn.knights { border-left: 4px solid #3498db; }
+    .faction-btn.mages { border-left: 4px solid #926eae; }
+    .faction-btn.cultists { border-left: 4px solid #555; }
+    .faction-btn.dryads { border-left: 4px solid #2ecc71; }
+    .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); z-index: 1000; align-items: center; justify-content: center; padding: 20px; }
+    .modal.active { display: flex; }
+    .modal-content { background: #1a1a2e; border-radius: 15px; padding: 20px; max-width: 400px; width: 100%; max-height: 80vh; overflow-y: auto; }
+    .modal-title { font-size: 20px; font-weight: 700; margin-bottom: 15px; text-align: center; }
+    .leaderboard-item { display: flex; align-items: center; gap: 12px; padding: 12px; background: rgba(255,255,255,0.05); border-radius: 10px; margin-bottom: 8px; }
+    .leaderboard-rank { font-size: 18px; font-weight: 700; width: 30px; text-align: center; }
+    .leaderboard-rank.gold { color: #f1c40f; }
+    .leaderboard-rank.silver { color: #95a5a6; }
+    .leaderboard-rank.bronze { color: #cd7f32; }
+    .leaderboard-avatar { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, #3498db, #926eae); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px; }
+    .leaderboard-info { flex: 1; }
+    .leaderboard-name { font-weight: 600; margin-bottom: 2px; }
+    .leaderboard-rating { font-size: 13px; color: #f1c40f; }
+    .modal-close { margin-top: 15px; padding: 12px; background: #e74c3c; border: none; border-radius: 8px; color: white; font-weight: 600; cursor: pointer; width: 100%; }
+    .toast { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); padding: 12px 25px; border-radius: 25px; font-size: 14px; z-index: 2000; opacity: 0; transition: opacity 0.3s; }
+    .toast.show { opacity: 1; }
+    .loading { text-align: center; padding: 20px; color: #888; }
   </style>
 </head>
 <body>
   <div class="header">
     <h1>⚔️ Карточная Битва</h1>
-    <p>Выберите фракцию для начала игры</p>
+    <p style="color: #888; font-size: 13px;">Собирай колоду и сражайся!</p>
   </div>
-
-  <button class="faction-btn knights" onclick="selectFaction('knights')">
-    <span>🔵</span> Рыцари Цветка Лилии
-  </button>
   
-  <button class="faction-btn mages" onclick="selectFaction('mages')">
-    <span>🟣</span> Орден Чародеев
-  </button>
-  
-  <button class="faction-btn cultists" onclick="selectFaction('cultists')">
-    <span>⚫</span> Прислужники Черной Лилии
-  </button>
-  
-  <button class="faction-btn dryads" onclick="selectFaction('dryads')">
-    <span>🟢</span> Дриады леса Нидолион
-  </button>
-
-  <button class="deck-btn" onclick="goToDeckBuilder()">
-    <span>🃏</span> Собрать колоду
-  </button>
-
-  <div class="card-preview" id="preview">
-    <div class="card-type white">БЕЛЫЙ</div>
-    <div class="card-name">Пехотинец</div>
-    <div class="card-stats">
-      <span>⚔️ 2</span>
-      <span>🛡️ 1</span>
-      <span>❤️ 2</span>
+  <div class="player-info" id="playerInfo" style="display: none;">
+    <div class="player-avatar" id="playerAvatar">👤</div>
+    <div class="player-details">
+      <div class="player-name" id="playerName">Загрузка...</div>
+      <div class="player-rating">⭐ <span id="playerRating">0</span> очков</div>
     </div>
-    <div class="card-influence">Влияние: 2</div>
-    <div class="card-effect">Эффект: Нет</div>
   </div>
+  
+  <div class="stats-grid" id="statsGrid" style="display: none;">
+    <div class="stat-box">
+      <div class="stat-value rating" id="statRating">0</div>
+      <div class="stat-label">Рейтинг</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-value wins" id="statWins">0</div>
+      <div class="stat-label">Победы</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-value losses" id="statLosses">0</div>
+      <div class="stat-label">Поражения</div>
+    </div>
+  </div>
+  
+  <div class="loading" id="loading">Загрузка...</div>
+  
+  <div class="menu-buttons" id="menuButtons" style="display: none;">
+    <button class="menu-btn primary" onclick="startGame()">
+      <span>⚔️</span> Начать игру
+    </button>
+    <button class="menu-btn success" onclick="inviteFriend()">
+      <span>👥</span> Пригласить друга
+    </button>
+    <button class="menu-btn info" onclick="showLeaderboard()">
+      <span>🏆</span> Таблица лидеров
+    </button>
+    <button class="menu-btn warning" onclick="goToDeckBuilder()">
+      <span>🃏</span> Собрать колоду
+    </button>
+  </div>
+  
+  <div id="factionSelect" style="display: none; margin-top: 20px;">
+    <h3 style="margin-bottom: 15px; text-align: center;">Выберите фракцию:</h3>
+    <button class="faction-btn knights" onclick="selectFaction('knights')">
+      <span>🔵</span> Рыцари Цветка Лилии
+    </button>
+    <button class="faction-btn mages" onclick="selectFaction('mages')">
+      <span>🟣</span> Орден Чародеев
+    </button>
+    <button class="faction-btn cultists" onclick="selectFaction('cultists')">
+      <span>⚫</span> Прислужники Черной Лилии
+    </button>
+    <button class="faction-btn dryads" onclick="selectFaction('dryads')">
+      <span>🟢</span> Дриады леса Нидолион
+    </button>
+  </div>
+  
+  <div class="modal" id="leaderboardModal">
+    <div class="modal-content">
+      <div class="modal-title">🏆 Таблица лидеров</div>
+      <div id="leaderboardList"><div class="loading">Загрузка...</div></div>
+      <button class="modal-close" onclick="closeLeaderboard()">Закрыть</button>
+    </div>
+  </div>
+  
+  <div class="toast" id="toast"></div>
 
   <script>
-    // Инициализация Telegram Web App
+    const firebaseConfig = {
+      apiKey: "AIzaSyDv2aMIyNPZazXZFsHRBbHhb2GKYMTGInY",
+      authDomain: "card-game-eb9f1.firebaseapp.com",
+      projectId: "card-game-eb9f1",
+      storageBucket: "card-game-eb9f1.firebasestorage.app",
+      messagingSenderId: "5336286232",
+      appId: "1:5336286232:web:962f830660b7a9a9812f6d",
+      measurementId: "G-8RGKPHBKHJ"
+    };
+    
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    
     const tg = window.Telegram.WebApp;
     tg.expand();
     tg.ready();
-
-    // Выбор фракции
-    function selectFaction(faction) {
-      localStorage.setItem('selectedFaction', faction);
+    
+    let currentUser = null;
+    let userStats = { rating: 0, wins: 0, losses: 0, faction: null };
+    
+    document.addEventListener('DOMContentLoaded', async () => {
+      await initUser();
+    });
+    
+    async function initUser() {
+      document.getElementById('loading').style.display = 'block';
+      const tgUser = tg.initDataUnsafe?.user;
       
-      if (tg.HapticFeedback) {
-        tg.HapticFeedback.impactOccurred('light');
+      if (tgUser) {
+        currentUser = {
+          id: tgUser.id.toString(),
+          username: tgUser.username || tgUser.first_name,
+          firstName: tgUser.first_name,
+          lastName: tgUser.last_name || ''
+        };
+        await loadUserStats();
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('playerInfo').style.display = 'flex';
+        document.getElementById('statsGrid').style.display = 'grid';
+        document.getElementById('menuButtons').style.display = 'flex';
+        updatePlayerUI();
+        if (!userStats.faction) {
+          document.getElementById('factionSelect').style.display = 'block';
+          showToast('Выберите фракцию для начала!');
+        }
+      } else {
+        currentUser = { id: 'guest_' + Math.random().toString(36).substr(2, 9), username: 'Guest', firstName: 'Гость', lastName: '' };
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('playerInfo').style.display = 'flex';
+        document.getElementById('statsGrid').style.display = 'grid';
+        document.getElementById('menuButtons').style.display = 'flex';
+        document.getElementById('factionSelect').style.display = 'block';
+        updatePlayerUI();
+        showToast('Режим гостя. Войдите через Telegram!');
       }
-      
-      // Сразу переходим в конструктор
-      goToDeckBuilder();
     }
-
-    // Переход в конструктор колоды
+    
+    async function loadUserStats() {
+      try {
+        const docRef = db.collection('users').doc(currentUser.id);
+        const docSnap = await docRef.get();
+        if (docSnap.exists) {
+          userStats = docSnap.data();
+        } else {
+          await docRef.set({ rating: 0, wins: 0, losses: 0, faction: null, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+          userStats = { rating: 0, wins: 0, losses: 0, faction: null };
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        showToast('Ошибка загрузки данных');
+      }
+    }
+    
+    function updatePlayerUI() {
+      document.getElementById('playerAvatar').textContent = currentUser.firstName.charAt(0).toUpperCase();
+      document.getElementById('playerName').textContent = currentUser.username || currentUser.firstName;
+      document.getElementById('playerRating').textContent = userStats.rating;
+      document.getElementById('statRating').textContent = userStats.rating;
+      document.getElementById('statWins').textContent = userStats.wins;
+      document.getElementById('statLosses').textContent = userStats.losses;
+    }
+    
+    async function selectFaction(faction) {
+      userStats.faction = faction;
+      try {
+        await db.collection('users').doc(currentUser.id).update({ faction: faction });
+        document.getElementById('factionSelect').style.display = 'none';
+        showToast(`Фракция выбрана: ${FACTIONS[faction].name}!`);
+      } catch (error) {
+        showToast('Ошибка сохранения');
+      }
+    }
+    
+    function startGame() {
+      if (!userStats.faction) {
+        showToast('Сначала выберите фракцию!');
+        document.getElementById('factionSelect').style.display = 'block';
+        return;
+      }
+      localStorage.setItem('selectedFaction', userStats.faction);
+      localStorage.setItem('playerRating', userStats.rating);
+      window.location.href = 'game.html';
+    }
+    
     function goToDeckBuilder() {
+      if (!userStats.faction) {
+        showToast('Сначала выберите фракцию!');
+        document.getElementById('factionSelect').style.display = 'block';
+        return;
+      }
+      localStorage.setItem('selectedFaction', userStats.faction);
       window.location.href = 'deckbuilder.html';
     }
-
-    // Демонстрация случайных карт
-    const demoCards = [
-      { name: 'Пехотинец', type: 'white', power: 2, armor: 1, health: 2, influence: 2, effect: 'Нет' },
-      { name: 'Рыцарь Ордена', type: 'gray', power: 5, armor: 4, health: 4, influence: 4, effect: '' },
-      { name: 'Воин Света', type: 'purple', power: 1, armor: 1, health: 6, influence: 5, effect: '+2 к силе союзнику' },
-      { name: 'Король Аугуст', type: 'gold', power: 6, armor: 6, health: 8, influence: 20, effect: 'Двойная активация' },
-      { name: 'Бомба', type: 'special', power: 0, armor: 0, health: 0, influence: 5, effect: '4 урона врагу' }
-    ];
-
-    function showRandomCard() {
-      const card = demoCards[Math.floor(Math.random() * demoCards.length)];
-      const preview = document.getElementById('preview');
-      
-      preview.querySelector('.card-type').className = `card-type ${card.type}`;
-      preview.querySelector('.card-type').textContent = card.type.toUpperCase();
-      preview.querySelector('.card-name').textContent = card.name;
-      preview.querySelector('.card-stats').innerHTML = `
-        <span>⚔️ ${card.power}</span>
-        <span>🛡️ ${card.armor}</span>
-        <span>❤️ ${card.health}</span>
-      `;
-      preview.querySelector('.card-influence').textContent = `Влияние: ${card.influence}`;
-      preview.querySelector('.card-effect').textContent = `Эффект: ${card.effect || 'Нет'}`;
+    
+    async function inviteFriend() {
+      const inviteText = `🎮 Присоединяйся к Карточной Битве!\n\nСобирай колоду, сражайся с друзьями и поднимайся в рейтинге!\n\nИграть: https://t.me/CardBattleTestBot`;
+      try {
+        if (tg.switchInlineQuery) {
+          tg.switchInlineQuery(inviteText);
+        } else {
+          await navigator.clipboard.writeText(inviteText);
+          showToast('Ссылка скопирована! Отправь другу');
+        }
+      } catch (error) {
+        showToast('Ошибка при отправке');
+      }
     }
-
-    // Меняем карту каждые 3 секунды
-    setInterval(showRandomCard, 3000);
-    showRandomCard();
+    
+    async function showLeaderboard() {
+      document.getElementById('leaderboardModal').classList.add('active');
+      await loadLeaderboard();
+    }
+    
+    async function loadLeaderboard() {
+      const listEl = document.getElementById('leaderboardList');
+      listEl.innerHTML = '<div class="loading">Загрузка...</div>';
+      try {
+        const snapshot = await db.collection('users').orderBy('rating', 'desc').limit(20).get();
+        if (snapshot.empty) {
+          listEl.innerHTML = '<div class="loading">Пока нет игроков</div>';
+          return;
+        }
+        let html = '';
+        let rank = 1;
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          const isCurrentUser = doc.id === currentUser.id;
+          let rankClass = rank === 1 ? 'gold' : rank === 2 ? 'silver' : rank === 3 ? 'bronze' : '';
+          const initial = (data.username || '?').charAt(0).toUpperCase();
+          html += `<div class="leaderboard-item" style="${isCurrentUser ? 'background: rgba(52,152,219,0.2); border: 1px solid #3498db;' : ''}">
+            <div class="leaderboard-rank ${rankClass}">${rank}</div>
+            <div class="leaderboard-avatar">${initial}</div>
+            <div class="leaderboard-info">
+              <div class="leaderboard-name">${data.username || 'Unknown'} ${isCurrentUser ? '(вы)' : ''}</div>
+              <div class="leaderboard-rating">⭐ ${data.rating} очков | 🏆 ${data.wins || 0} побед</div>
+            </div>
+          </div>`;
+          rank++;
+        });
+        listEl.innerHTML = html;
+      } catch (error) {
+        listEl.innerHTML = '<div class="loading" style="color: #e74c3c;">Ошибка загрузки</div>';
+      }
+    }
+    
+    function closeLeaderboard() {
+      document.getElementById('leaderboardModal').classList.remove('active');
+    }
+    
+    async function updateRating(result) {
+      let ratingChange = 0;
+      if (result === 'win') { ratingChange = 10; userStats.wins++; }
+      else if (result === 'loss') { ratingChange = -5; userStats.losses++; }
+      else if (result === 'surrender') { ratingChange = -4; userStats.losses++; }
+      userStats.rating = Math.max(0, userStats.rating + ratingChange);
+      try {
+        await db.collection('users').doc(currentUser.id).update({ rating: userStats.rating, wins: userStats.wins, losses: userStats.losses });
+        updatePlayerUI();
+      } catch (error) { console.error('Error:', error); }
+    }
+    
+    function showToast(message) {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2500);
+    }
+    
+    window.selectFaction = selectFaction;
+    window.startGame = startGame;
+    window.goToDeckBuilder = goToDeckBuilder;
+    window.inviteFriend = inviteFriend;
+    window.showLeaderboard = showLeaderboard;
+    window.closeLeaderboard = closeLeaderboard;
+    window.updateRating = updateRating;
   </script>
 </body>
 </html>
