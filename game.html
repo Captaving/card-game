@@ -8,17 +8,17 @@
   <script src="https://cdn.socket.io/4.6.0/socket.io.min.js"></script>
   <script src="config.js"></script>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; touch-action: manipulation; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); color: white; padding: 10px; padding-bottom: 100px; user-select: none; -webkit-user-select: none; }
+    * { box-sizing: border-box; margin: 0; padding: 0; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); color: white; padding: 10px; padding-bottom: 100px; }
     .top-bar { display: flex; justify-content: space-between; align-items: center; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 10px; margin-bottom: 10px; }
     .rating-display { font-size: 12px; color: #f1c40f; font-weight: 700; }
     .online-indicator { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #2ecc71; }
     .online-dot { width: 8px; height: 8px; border-radius: 50%; background: #2ecc71; }
     .opponent-zone { display: flex; align-items: flex-start; margin-bottom: 10px; }
-    .leader-opponent { width: 45px; height: 45px; border-radius: 8px; background: linear-gradient(135deg, #666, #333); border: 2px solid #555; display: flex; align-items: center; justify-content: center; font-size: 20px; margin-right: 8px; }
+    .leader-opponent { width: 45px; height: 45px; border-radius: 8px; background: linear-gradient(135deg, #666, #333); border: 2px solid #555; display: flex; align-items: center; justify-content: center; font-size: 20px; margin-right: 8px; cursor: pointer; }
     .hand-opponent { flex: 1; display: flex; gap: 4px; overflow-x: auto; padding: 5px 0; height: 55px; }
     .card-back { width: 38px; height: 52px; border-radius: 6px; background: linear-gradient(135deg, #2c3e50, #1a252f); border: 2px solid #34495e; flex-shrink: 0; }
-    .deck-zone { display: flex; flex-direction: column; gap: 5px; margin-left: 10px; }
+    .deck-zone { display: flex; flex-direction: column; gap: 5px; margin-left: 10px; cursor: pointer; }
     .deck-pile, .discard-pile { width: 45px; height: 45px; border-radius: 8px; background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; font-size: 10px; position: relative; }
     .deck-pile::before { content: '📚'; font-size: 18px; }
     .discard-pile::before { content: '🗑️'; font-size: 18px; }
@@ -59,22 +59,26 @@
     .hand-card-type { font-size: 6px; padding: 2px 3px; border-radius: 2px; margin-bottom: 2px; }
     .hand-card-name { font-size: 7px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; }
     .hand-card-power { font-size: 12px; font-weight: 700; color: #fff; margin-top: 2px; }
-    .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); z-index: 1000; align-items: center; justify-content: center; padding: 20px; }
+    .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.9); z-index: 1000; align-items: center; justify-content: center; padding: 20px; }
     .modal.active { display: flex; }
-    .modal-content { background: #1a1a2e; border-radius: 15px; padding: 20px; max-width: 400px; width: 100%; max-height: 80vh; overflow-y: auto; }
-    .modal-title { font-size: 16px; font-weight: 600; margin-bottom: 12px; text-align: center; }
+    .modal-content { background: #1a1a2e; border-radius: 15px; padding: 20px; max-width: 500px; width: 100%; max-height: 80vh; overflow-y: auto; }
+    .modal-title { font-size: 18px; font-weight: 700; margin-bottom: 15px; text-align: center; color: #3498db; }
     .modal-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)); gap: 8px; }
     .modal-card { padding: 8px; border-radius: 8px; background: #2c3e50; border: 2px solid transparent; cursor: pointer; text-align: center; font-size: 12px; }
     .modal-card:active { background: rgba(52, 152, 219, 0.3); }
-    .modal-close { margin-top: 12px; padding: 10px; background: #e74c3c; border: none; border-radius: 8px; color: white; font-weight: 600; cursor: pointer; width: 100%; font-size: 13px; }
+    .modal-close { margin-top: 15px; padding: 12px; background: #e74c3c; border: none; border-radius: 8px; color: white; font-weight: 600; cursor: pointer; width: 100%; font-size: 13px; }
     .toast { position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.9); padding: 12px 20px; border-radius: 20px; font-size: 12px; z-index: 2000; opacity: 0; transition: opacity 0.2s; max-width: 85%; text-align: center; pointer-events: none; }
     .toast.show { opacity: 1; }
-    .card-tooltip { position: fixed; background: rgba(26, 26, 46, 0.98); border: 2px solid #3498db; border-radius: 12px; padding: 15px; max-width: 250px; z-index: 3000; display: none; box-shadow: 0 10px 40px rgba(0,0,0,0.5); left: 50%; top: 50%; transform: translate(-50%, -50%); }
-    .card-tooltip.active { display: block; animation: fadeIn 0.15s ease; }
-    @keyframes fadeIn { from { opacity: 0; transform: translate(-50%, -40%); } to { opacity: 1; transform: translate(-50%, -50%); } }
-    .card-tooltip-title { font-size: 14px; font-weight: 700; color: #3498db; margin-bottom: 8px; text-align: center; }
-    .card-tooltip-effect { font-size: 12px; color: #ddd; line-height: 1.4; text-align: center; }
-    .tooltip-close { margin-top: 12px; padding: 8px; background: rgba(231, 76, 60, 0.2); border: none; border-radius: 6px; color: #e74c3c; font-size: 11px; cursor: pointer; width: 100%; }
+    .info-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.95); z-index: 1500; display: none; align-items: center; justify-content: center; padding: 20px; }
+    .info-overlay.active { display: flex; }
+    .info-content { background: #1a1a2e; border-radius: 15px; padding: 25px; max-width: 600px; width: 100%; max-height: 85vh; overflow-y: auto; border: 2px solid #3498db; }
+    .info-title { font-size: 20px; font-weight: 700; margin-bottom: 20px; text-align: center; color: #3498db; }
+    .info-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 10px; }
+    .info-card { padding: 10px; background: #2c3e50; border-radius: 8px; font-size: 11px; }
+    .info-close { margin-top: 20px; padding: 12px; background: #3498db; border: none; border-radius: 8px; color: white; font-weight: 600; cursor: pointer; width: 100%; font-size: 14px; }
+    .leader-info { background: rgba(52, 152, 219, 0.1); border: 1px solid #3498db; border-radius: 10px; padding: 15px; margin-bottom: 15px; }
+    .leader-name { font-size: 16px; font-weight: 700; color: #3498db; margin-bottom: 8px; }
+    .leader-ability { font-size: 12px; color: #aaa; line-height: 1.4; }
     @media (max-width: 480px) { .field-card { width: 70px; min-height: 95px; } .row { min-width: 75px; } }
   </style>
 </head>
@@ -91,11 +95,11 @@
   </div>
   
   <div class="opponent-zone">
-    <div class="leader-opponent" id="leaderOpponent">👤</div>
+    <div class="leader-opponent" id="leaderOpponent" ondblclick="showLeaderInfo('opponent')">👤</div>
     <div class="hand-opponent" id="handOpponent"></div>
     <div class="deck-zone">
-      <div class="deck-pile"><span class="pile-count" id="deckOpponentCount">0</span></div>
-      <div class="discard-pile"><span class="pile-count" id="discardOpponentCount">0</span></div>
+      <div class="deck-pile" ondblclick="showDeckInfo('opponent')"><span class="pile-count" id="deckOpponentCount">0</span></div>
+      <div class="discard-pile" ondblclick="showDiscardInfo('opponent')"><span class="pile-count" id="discardOpponentCount">0</span></div>
     </div>
   </div>
   
@@ -135,11 +139,11 @@
   </div>
   
   <div class="player-zone">
-    <div class="leader-player" id="leaderPlayer" onclick="useLeaderAbility()">👑</div>
+    <div class="leader-player" id="leaderPlayer" ondblclick="showLeaderInfo('player')" onclick="useLeaderAbility()">👑</div>
     <div class="hand-player" id="handPlayer"></div>
     <div class="deck-zone">
-      <div class="deck-pile"><span class="pile-count" id="deckPlayerCount">0</span></div>
-      <div class="discard-pile"><span class="pile-count" id="discardPlayerCount">0</span></div>
+      <div class="deck-pile" ondblclick="showDeckInfo('player')"><span class="pile-count" id="deckPlayerCount">0</span></div>
+      <div class="discard-pile" ondblclick="showDiscardInfo('player')"><span class="pile-count" id="discardPlayerCount">0</span></div>
     </div>
   </div>
   
@@ -151,10 +155,12 @@
     </div>
   </div>
   
-  <div class="card-tooltip" id="cardTooltip">
-    <div class="card-tooltip-title" id="tooltipTitle">Название карты</div>
-    <div class="card-tooltip-effect" id="tooltipEffect">Эффект карты</div>
-    <button class="tooltip-close" onclick="hideTooltip()">✕ Закрыть</button>
+  <div class="info-overlay" id="infoOverlay" onclick="closeInfoOverlay(event)">
+    <div class="info-content" onclick="event.stopPropagation()">
+      <div class="info-title" id="infoTitle">Информация</div>
+      <div id="infoContent"></div>
+      <button class="info-close" onclick="closeInfoOverlay()">Закрыть</button>
+    </div>
   </div>
   
   <div class="toast" id="toast"></div>
@@ -164,26 +170,24 @@
     tg.expand();
     tg.ready();
     
-    // === ПОДКЛЮЧЕНИЕ К СЕРВЕРУ ===
-    const SERVER_URL = 'http://193.148.59.127:3000'; // 
+    const SERVER_URL = 'http://193.148.59.127:3000';
     const socket = io(SERVER_URL, { transports: ['websocket', 'polling'], reconnection: true, reconnectionAttempts: 3 });
     
     let roomId = null;
     let isOnlineGame = false;
     let playerId = null;
     
-    socket.on('connect', () => { console.log('✅ Connected:', socket.id); playerId = socket.id; document.getElementById('onlineIndicator').style.display = 'flex'; });
+    socket.on('connect', () => { console.log('✅ Connected'); playerId = socket.id; document.getElementById('onlineIndicator').style.display = 'flex'; });
     socket.on('disconnect', () => { console.log('❌ Disconnected'); document.getElementById('onlineIndicator').style.display = 'none'; });
     socket.on('room-created', (data) => { roomId = data.roomId; showToast(`🏠 Комната: ${roomId}`); });
     socket.on('game-start', () => { showToast('🎮 Игра началась!'); isOnlineGame = true; });
-    socket.on('opponent-move', (data) => { console.log('👤 Opponent move'); renderAll(); });
+    socket.on('opponent-move', (data) => { renderAll(); });
     socket.on('opponent-pass', () => { showToast('⏭️ Противник пропустил ход'); gameState.opponentPass = true; if (gameState.playerPass) endRound(); renderAll(); });
-    socket.on('opponent-disconnected', () => { showToast('❌ Противник вышел'); alert('Противник отключился!\nПобеда!'); if (window.opener?.updateRating) window.opener.updateRating('win'); setTimeout(() => { localStorage.removeItem('selectedFaction'); window.location.href = 'index.html'; }, 2000); });
-    socket.on('error', (data) => { showToast('❌ ' + data.message); });
+    socket.on('opponent-disconnected', () => { showToast('❌ Противник вышел'); setTimeout(() => window.location.href = 'index.html', 2000); });
     
-    // === ИГРОВЫЕ ДАННЫЕ ===
     let gameState = {
       playerFaction: localStorage.getItem('selectedFaction') || 'knights',
+      playerLeader: localStorage.getItem('playerLeader') || null,
       playerHand: [], playerDeck: [], playerDiscard: [],
       playerField: { left: [], right: [] },
       opponentHand: [], opponentDeck: [], opponentDiscard: [],
@@ -194,42 +198,97 @@
     };
     
     let playerRating = parseInt(localStorage.getItem('playerRating') || '0');
-    let tooltipTimeout = null;
+    let clickTimer = null;
+    let lastClickTarget = null;
     
-    // === СИСТЕМА ЭФФЕКТОВ (упрощённая) ===
-    const Effects = {
-      damage: (target, value) => {
-        if (!target) return { ok: false };
-        target.health = (target.health || 1) - value;
-        return { ok: true, destroyed: target.health <= 0, msg: `${target.name} получил ${value} урона` };
-      },
-      heal: (target, value) => {
-        if (!target) return { ok: false };
-        target.health = (target.health || 0) + value;
-        return { ok: true, msg: `${target.name} исцелён на ${value}` };
-      },
-      buff: (target, value, stat) => {
-        if (!target || !stat) return { ok: false };
-        target[stat] = (target[stat] || 0) + value;
-        return { ok: true, msg: `${target.name}: +${value} ${stat}` };
-      },
+    // === ЭФФЕКТЫ КАРТ ===
+    const CardEffects = {
+      damage: (target, value) => { if (!target) return {ok:false}; target.health = (target.health||1) - value; return {ok:true, destroyed:target.health<=0, msg:`${target.name} получил ${value} урона`}; },
+      heal: (target, value) => { if (!target) return {ok:false}; target.health = (target.health||0) + value; return {ok:true, msg:`${target.name} исцелён на ${value}`}; },
+      buff: (target, value, stat) => { if (!target||!stat) return {ok:false}; target[stat] = (target[stat]||0) + value; return {ok:true, msg:`${target.name}: +${value} ${stat}`}; },
       summon: (cardId, count, row) => {
         const faction = FACTIONS[gameState.playerFaction];
         const template = faction?.cards?.find(c => c.id === cardId);
-        if (!template) return { ok: false, msg: 'Карта не найдена' };
+        if (!template) return {ok:false, msg:'Карта не найдена'};
         let summoned = 0;
-        for (let i = 0; i < count; i++) {
+        for (let i=0; i<count; i++) {
           if (gameState.playerField[row]?.length < 4) {
-            gameState.playerField[row].push({ ...template, instanceId: Date.now() + i });
+            gameState.playerField[row].push({...template, instanceId: Date.now()+i});
             summoned++;
           }
         }
-        return { ok: true, msg: `Призвано ${summoned} карт` };
+        return {ok:true, msg:`Призвано ${summoned} карт`};
+      },
+      draw: (count) => {
+        const draw = Math.min(count, gameState.playerDeck.length);
+        if (draw > 0) {
+          gameState.playerHand.push(...gameState.playerDeck.splice(0, draw));
+          return {ok:true, msg:`Взято ${draw} карт`};
+        }
+        return {ok:false, msg:'Колода пуста'};
+      },
+      returnToHand: (target) => {
+        if (!target) return {ok:false};
+        ['left','right'].forEach(row => {
+          const idx = gameState.playerField[row].findIndex(c => c.id === target.id);
+          if (idx > -1) {
+            gameState.playerField[row].splice(idx, 1);
+            gameState.playerHand.push(target);
+            return {ok:true, msg:`${target.name} возвращён в руку`};
+          }
+        });
+        return {ok:false};
+      },
+      destroy: (target) => {
+        if (!target) return {ok:false};
+        ['left','right'].forEach(row => {
+          const idx = gameState.playerField[row].findIndex(c => c.id === target.id);
+          if (idx > -1) {
+            const card = gameState.playerField[row].splice(idx, 1)[0];
+            gameState.playerDiscard.push(card);
+            return {ok:true, msg:`${target.name} уничтожен`};
+          }
+        });
+        return {ok:false};
       }
     };
     
+    // === ОБРАБОТКА ЭФФЕКТОВ ===
+    function handleCardEffect(card, context={}) {
+      if (!card?.effect) return {ok:true, msg:'Нет эффекта'};
+      const eff = card.effect;
+      
+      if (eff.action === 'damage') {
+        const enemies = [...gameState.opponentField.left, ...gameState.opponentField.right];
+        if (enemies[0]) return CardEffects.damage(enemies[0], eff.value||1);
+      }
+      else if (eff.action === 'heal') {
+        const allies = [...gameState.playerField.left, ...gameState.playerField.right];
+        if (allies[0]) return CardEffects.heal(allies[0], eff.value||2);
+      }
+      else if (eff.action === 'buff' && eff.stat) {
+        const allies = gameState.playerField[context.row]?.filter(c => c.id !== card.id) || [];
+        if (allies[0]) return CardEffects.buff(allies[0], eff.value||2, eff.stat);
+      }
+      else if (eff.action === 'summon' && eff.card) {
+        return CardEffects.summon(eff.card, eff.count||1, eff.position==='adjacent'?(context.row||'left'):'left');
+      }
+      else if (eff.action === 'draw') {
+        return CardEffects.draw(eff.value||1);
+      }
+      
+      return {ok:true, msg:'Эффект активирован'};
+    }
+    
     // === ИНИЦИАЛИЗАЦИЯ ===
     document.addEventListener('DOMContentLoaded', () => {
+      // Проверка выбора лидера
+      if (!gameState.playerLeader) {
+        alert('⚠️ Выберите лидера в конструкторе колоды!\n\nПеренаправление...');
+        window.location.href = 'deckbuilder.html';
+        return;
+      }
+      
       document.getElementById('playerRatingDisplay').textContent = '⭐ ' + playerRating;
       loadDeck();
       initGame();
@@ -277,8 +336,7 @@
           const colors = { white: '#fff', gray: '#95a5a6', purple: '#a233ff', gold: '#f1c40f', special: '#e74c3c' };
           el.className = 'hand-card';
           el.innerHTML = `<div class="hand-card-type" style="background:${colors[card.type]};color:${['white','gold'].includes(card.type)?'#333':'#fff'}">${card.type.toUpperCase()}</div><div class="hand-card-name">${card.name}</div><div class="hand-card-power">⚔️${card.power}</div>`;
-          el.onclick = () => playCard(idx);
-          setupTooltip(el, card);
+          setupDoubleClick(el, () => playCard(idx), () => showCardEffect(card));
         }
         container.appendChild(el);
       });
@@ -289,7 +347,9 @@
         const el = document.getElementById(`${who}${row==='left'?'Left':'Right'}Row`);
         el.querySelectorAll('.field-card').forEach(c => c.remove());
         gameState[who==='player'?'playerField':'opponentField'][row].forEach((card, idx) => {
-          el.appendChild(createFieldCard(card, who, row, idx));
+          const cardEl = createFieldCard(card, who, row, idx);
+          if (who === 'player') setupDoubleClick(cardEl, () => selectCard(who,row,idx), () => showCardEffect(card));
+          el.appendChild(cardEl);
         });
       });
     }
@@ -301,31 +361,102 @@
       const colors = { white: '#fff', gray: '#95a5a6', purple: '#a233ff', gold: '#f1c40f', special: '#e74c3c' };
       const eff = card.effect ? (card.effect.description||'Есть эффект') : 'Нет эффекта';
       el.innerHTML = `<div class="field-card-type" style="background:${colors[card.type]};color:${['white','gold'].includes(card.type)?'#333':'#fff'}">${card.type.toUpperCase()}</div><div class="field-card-name">${card.name}</div><div class="field-card-power">⚔️${card.power}</div><div class="field-card-stats"><span>🛡️${card.armor}</span><span>❤️${card.health}</span></div><div class="field-card-effect">${eff.substring(0,30)}${eff.length>30?'...':''}</div>`;
-      if (who === 'player') { el.onclick = () => selectCard(who,row,idx); setupTooltip(el, card); }
       return el;
     }
     
-    function setupTooltip(el, card) {
-      let timer;
-      const tt = document.getElementById('cardTooltip');
-      const show = () => {
-        const eff = card.effect ? (card.effect.description||'Есть эффект') : 'Нет эффекта';
-        document.getElementById('tooltipTitle').textContent = card.name;
-        document.getElementById('tooltipEffect').textContent = eff;
-        tt.classList.add('active');
-        if (tg.HapticFeedback) tg.HapticFeedback.selectionChanged();
-      };
-      const hide = () => { tt.classList.remove('active'); };
-      el.addEventListener('touchstart', (e) => { e.preventDefault(); timer = setTimeout(show, 400); }, {passive:false});
-      el.addEventListener('touchend', () => clearTimeout(timer));
-      el.addEventListener('touchmove', hide);
-      el.addEventListener('touchcancel', hide);
-      el.addEventListener('mousedown', () => timer = setTimeout(show, 400));
-      el.addEventListener('mouseup', () => clearTimeout(timer));
-      el.addEventListener('mouseleave', hide);
+    // === ДВОЙНОЕ НАЖАТИЕ ===
+    function setupDoubleClick(el, singleClickHandler, doubleClickHandler) {
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (clickTimer && lastClickTarget === el) {
+          clearTimeout(clickTimer);
+          clickTimer = null;
+          lastClickTarget = null;
+          doubleClickHandler();
+        } else {
+          clickTimer = setTimeout(() => {
+            singleClickHandler();
+            clickTimer = null;
+            lastClickTarget = null;
+          }, 250);
+          lastClickTarget = el;
+        }
+      });
     }
     
-    function hideTooltip() { document.getElementById('cardTooltip').classList.remove('active'); }
+    // === ПОКАЗ ИНФОРМАЦИИ ===
+    function showCardEffect(card) {
+      const eff = card.effect ? (card.effect.description || 'Есть эффект') : 'Нет эффекта';
+      const html = `
+        <div class="leader-info">
+          <div class="leader-name">${card.name}</div>
+          <div style="margin:10px 0; font-size:13px;">
+            <div>⚔️ Сила: ${card.power}</div>
+            <div>🛡️ Броня: ${card.armor}</div>
+            <div>❤️ Здоровье: ${card.health}</div>
+            <div>💫 Влияние: ${card.influence}</div>
+          </div>
+          <div style="font-size:12px; color:#aaa; margin-top:10px;">
+            <strong>Эффект:</strong><br>
+            ${eff}
+          </div>
+        </div>
+      `;
+      showInfoOverlay('Карта', html);
+    }
+    
+    function showLeaderInfo(who) {
+      const faction = who === 'player' ? gameState.playerFaction : 'mages';
+      const leaderIdx = who === 'player' ? (gameState.playerLeader || 0) : 0;
+      const leader = FACTIONS[faction]?.leaders?.[leaderIdx];
+      
+      if (!leader) {
+        showToast('Информация о лидере недоступна');
+        return;
+      }
+      
+      const html = `
+        <div class="leader-info">
+          <div class="leader-name">${leader.name}</div>
+          <div class="leader-ability">
+            <strong>Способность:</strong><br>
+            ${leader.ability?.description || leader.ability?.type || 'Уникальная способность'}
+          </div>
+        </div>
+      `;
+      showInfoOverlay(`${who==='player'?'Ваш':'Противника'} лидер`, html);
+    }
+    
+    function showDeckInfo(who) {
+      const deck = who === 'player' ? gameState.playerDeck : gameState.opponentDeck;
+      const html = `<div style="text-align:center; padding:20px; font-size:16px;">📚 Карт в колоде: <strong>${deck.length}</strong></div>`;
+      showInfoOverlay(`${who==='player'?'Ваша':'Противника'} колода`, html);
+    }
+    
+    function showDiscardInfo(who) {
+      const discard = who === 'player' ? gameState.playerDiscard : gameState.opponentDiscard;
+      let html = `<div style="text-align:center; padding:10px; font-size:14px;">🗑️ Карт в отбое: <strong>${discard.length}</strong></div>`;
+      if (discard.length > 0) {
+        html += '<div class="info-cards">';
+        discard.slice(-10).forEach(card => {
+          html += `<div class="info-card"><strong>${card.name}</strong><br>⚔️${card.power}</div>`;
+        });
+        html += '</div>';
+      }
+      showInfoOverlay(`${who==='player'?'Ваш':'Противника'} отбой`, html);
+    }
+    
+    function showInfoOverlay(title, content) {
+      document.getElementById('infoTitle').textContent = title;
+      document.getElementById('infoContent').innerHTML = content;
+      document.getElementById('infoOverlay').classList.add('active');
+    }
+    
+    function closeInfoOverlay(e) {
+      if (!e || e.target.id === 'infoOverlay') {
+        document.getElementById('infoOverlay').classList.remove('active');
+      }
+    }
     
     function renderScores() {
       document.getElementById('scorePlayer').textContent = gameState.playerScore;
@@ -355,7 +486,6 @@
     // === ИГРОВАЯ ЛОГИКА ===
     function playCard(idx) {
       if (gameState.currentPlayer !== 'player' || gameState.gameOver) { showToast('Не ваш ход!'); return; }
-      if (document.getElementById('cardTooltip').classList.contains('active')) return;
       const card = gameState.playerHand[idx];
       if (isOnlineGame && roomId) socket.emit('play-card', { roomId, card: {id:card.id,name:card.name}, idx });
       showModal('Выберите ряд', [
@@ -368,44 +498,17 @@
       if (gameState.playerField[row].length >= 4) { showToast('Ряд заполнен!'); return; }
       gameState.playerField[row].push(card);
       gameState.playerHand.splice(idx, 1);
+      
+      // Обработка эффекта карты
+      if (card.effect) {
+        const result = handleCardEffect(card, {row});
+        if (result?.msg) showToast(result.msg);
+      }
+      
       if (card.type === 'special' || card.discardAfterUse) { gameState.playerDiscard.push(card); gameState.playerField[row].pop(); }
       
-      // ✅ ОБРАБОТКА ЭФФЕКТОВ КАРТЫ
-      if (card.effect?.type === 'onPlay') handleEffect(card, row);
-      
-      calcScore(); endTurn(); renderAll(); closeModal(); hideTooltip();
+      calcScore(); endTurn(); renderAll(); closeModal();
       if (tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
-    }
-    
-    function handleEffect(card, row) {
-      const eff = card.effect;
-      if (!eff?.action) return;
-      
-      if (eff.action === 'damage' && eff.target === 'enemy_unit') {
-        const enemies = [...gameState.opponentField.left, ...gameState.opponentField.right];
-        if (enemies[0]) {
-          const r = Effects.damage(enemies[0], eff.value||1);
-          if (r?.msg) showToast(r.msg);
-        }
-      }
-      else if (eff.action === 'heal' && eff.target === 'own_unit') {
-        const allies = [...gameState.playerField.left, ...gameState.playerField.right];
-        if (allies[0]) {
-          const r = Effects.heal(allies[0], eff.value||2);
-          if (r?.msg) showToast(r.msg);
-        }
-      }
-      else if (eff.action === 'buff' && eff.stat === 'power') {
-        const allies = gameState.playerField[row].filter(c => c.id !== card.id);
-        if (allies[0]) {
-          const r = Effects.buff(allies[0], eff.value||2, 'power');
-          if (r?.msg) showToast(r.msg);
-        }
-      }
-      else if (eff.action === 'summon' && eff.card) {
-        const r = Effects.summon(eff.card, eff.count||1, eff.position==='adjacent'?row:'left');
-        if (r?.msg) showToast(r.msg);
-      }
     }
     
     function calcScore() {
@@ -421,9 +524,13 @@
     
     function opponentTurn() {
       if (gameState.gameOver) return;
-      const shouldPass = [...gameState.opponentField.left,...gameState.opponentField.right].reduce((s,c)=>s+(c.power||0),0) > [...gameState.playerField.left,...gameState.playerField.right].reduce((s,c)=>s+(c.power||0),0) && (gameState.opponentHand.length <= 3 || gameState.opponentField.left.length+gameState.opponentField.right.length >= 7);
+      
+      // Бот играет карту или пасует
+      const shouldPass = Math.random() > 0.7 || (gameState.opponentField.left.length+gameState.opponentField.right.length >= 7);
+      
       if (shouldPass && !gameState.opponentPass) {
-        gameState.opponentPass = true; showToast('Противник пропустил ход!');
+        gameState.opponentPass = true;
+        showToast('⏭️ Противник пропустил ход!');
         if (gameState.playerPass) setTimeout(endRound, 1000);
       } else if (gameState.opponentHand.length > 0) {
         const idx = Math.floor(Math.random()*gameState.opponentHand.length);
@@ -433,62 +540,107 @@
           gameState.opponentField[row].push(card);
           gameState.opponentHand.splice(idx, 1);
           if (card.type === 'special' || card.discardAfterUse) { gameState.opponentDiscard.push(card); gameState.opponentField[row].pop(); }
-          calcScore(); showToast('Противник сыграл карту');
+          calcScore();
+          showToast('🤖 Противник сыграл карту');
         }
       }
-      gameState.currentPlayer = 'player'; renderAll();
+      
+      gameState.currentPlayer = 'player';
+      renderAll();
     }
     
     function passTurn() {
       if (gameState.playerPass || gameState.gameOver) return;
-      gameState.playerPass = true; showToast('Вы пропустили ход!');
+      gameState.playerPass = true;
+      showToast('✅ Вы пропустили ход!');
+      
       if (isOnlineGame && roomId) socket.emit('pass-turn', { roomId });
-      if (gameState.opponentPass) setTimeout(endRound, 1000);
-      else { gameState.currentPlayer = 'opponent'; setTimeout(opponentTurn, 1000); }
+      
+      // Бот сразу делает ход
+      gameState.currentPlayer = 'opponent';
+      setTimeout(() => {
+        opponentTurn();
+        // Если оба пасанули - конец раунда
+        if (gameState.opponentPass) {
+          setTimeout(endRound, 1000);
+        }
+      }, 1000);
+      
       renderAll();
+    }
+    
+    function endRound() {
+      if (gameState.gameOver) return;
+      showToast(`🔄 Раунд ${gameState.round} завершён!`);
+      
+      // Все карты в отбой
+      gameState.playerDiscard.push(...gameState.playerField.left, ...gameState.playerField.right);
+      gameState.opponentDiscard.push(...gameState.opponentField.left, ...gameState.opponentField.right);
+      
+      gameState.playerField.left = [];
+      gameState.playerField.right = [];
+      gameState.opponentField.left = [];
+      gameState.opponentField.right = [];
+      
+      // Добор карт
+      const draw = Math.min(2, gameState.playerDeck.length);
+      if (draw > 0) gameState.playerHand.push(...gameState.playerDeck.splice(0, draw));
+      
+      const oppDraw = Math.min(2, gameState.opponentDeck.length);
+      if (oppDraw > 0) gameState.opponentHand.push(...gameState.opponentDeck.splice(0, oppDraw));
+      
+      gameState.playerPass = false;
+      gameState.opponentPass = false;
+      gameState.round++;
+      
+      setTimeout(() => {
+        if (gameState.round > 3 || (gameState.playerDeck.length === 0 && gameState.opponentDeck.length === 0)) {
+          endGame();
+        } else {
+          showToast(`🎮 Раунд ${gameState.round} начался!`);
+          updatePassBtn();
+          renderAll();
+        }
+      }, 2000);
     }
     
     function surrenderGame() {
       if (gameState.gameOver) return;
       if (confirm('Сдаться?\n\n⚠️ -4 очка рейтинга')) {
-        gameState.gameOver = true; showToast('Вы сдались: -4 очка рейтинга');
+        gameState.gameOver = true;
+        showToast('Вы сдались: -4 очка рейтинга');
         if (window.opener?.updateRating) window.opener.updateRating('surrender');
         else { let r = parseInt(localStorage.getItem('playerRating')||'0'); localStorage.setItem('playerRating', String(Math.max(0, r-4))); }
         setTimeout(() => { localStorage.removeItem('selectedFaction'); localStorage.removeItem('roomId'); window.location.href = 'index.html'; }, 1500);
       }
     }
     
-    function endRound() {
-      if (gameState.gameOver) return;
-      showToast(`Раунд ${gameState.round} завершён!`);
-      gameState.playerField.left = gameState.playerField.left.filter(c=>c.persistBetweenRounds);
-      gameState.playerField.right = gameState.playerField.right.filter(c=>c.persistBetweenRounds);
-      gameState.playerDiscard.push(...gameState.playerField.left, ...gameState.playerField.right);
-      gameState.opponentField.left = []; gameState.opponentField.right = [];
-      const draw = Math.min(2, gameState.playerDeck.length);
-      if (draw > 0) gameState.playerHand.push(...gameState.playerDeck.splice(0, draw));
-      gameState.playerPass = false; gameState.opponentPass = false; gameState.round++;
-      setTimeout(() => { if (gameState.round > 3 || gameState.playerDeck.length === 0) endGame(); else { showToast(`Раунд ${gameState.round} начался!`); renderAll(); } }, 2000);
-    }
-    
     function endGame() {
       gameState.gameOver = true;
       let msg='', emoji='', result='';
-      if (gameState.playerScore > gameState.opponentScore) { msg='ПОБЕДА!'; emoji='🏆'; result='win'; showToast('+10 очков рейтинга'); }
-      else if (gameState.playerScore < gameState.opponentScore) { msg='ПОРАЖЕНИЕ!'; emoji='💀'; result='loss'; showToast('-5 очков рейтинга'); }
-      else { msg='НИЧЬЯ!'; emoji='🤝'; result='draw'; showToast('Рейтинг не изменён'); }
+      if (gameState.playerScore > gameState.opponentScore) { msg='🏆 ПОБЕДА!'; result='win'; showToast('+10 очков рейтинга'); }
+      else if (gameState.playerScore < gameState.opponentScore) { msg='💀 ПОРАЖЕНИЕ!'; result='loss'; showToast('-5 очков рейтинга'); }
+      else { msg='🤝 НИЧЬЯ!'; result='draw'; showToast('Рейтинг не изменён'); }
+      
       if (window.opener?.updateRating && result!=='draw') window.opener.updateRating(result);
-      else { let r = parseInt(localStorage.getItem('playerRating')||'0'); if (result==='win') r+=10; else if (result==='loss') r=Math.max(0,r-5); localStorage.setItem('playerRating', String(r)); }
-      alert(`${emoji} ${msg}\n\nВаш счёт: ${gameState.playerScore}\nСчёт противника: ${gameState.opponentScore}`);
+      else {
+        let r = parseInt(localStorage.getItem('playerRating')||'0');
+        if (result==='win') r+=10; else if (result==='loss') r=Math.max(0,r-5);
+        localStorage.setItem('playerRating', String(r));
+      }
+      
+      alert(`${emoji||''} ${msg}\n\nВаш счёт: ${gameState.playerScore}\nСчёт противника: ${gameState.opponentScore}\n\nРаундов: ${gameState.round-1}`);
       localStorage.removeItem('selectedFaction'); localStorage.removeItem('roomId');
       window.location.href = 'index.html';
     }
     
-    // === СПОСОБНОСТЬ ЛИДЕРА ===
     function useLeaderAbility() {
       if (gameState.leaderUsed || gameState.gameOver) { showToast('Способность уже использована!'); return; }
+      
       const faction = gameState.playerFaction;
-      const leader = FACTIONS[faction]?.leaders?.[0];
+      const leaderIdx = gameState.playerLeader || 0;
+      const leader = FACTIONS[faction]?.leaders?.[leaderIdx];
+      
       if (!leader?.ability) { showToast('Способность не найдена'); return; }
       
       let result;
@@ -496,11 +648,11 @@
       
       if (abil.type === 'damage') {
         const enemies = [...gameState.opponentField.left, ...gameState.opponentField.right];
-        if (enemies[0]) result = Effects.damage(enemies[0], abil.value||3);
+        if (enemies[0]) result = CardEffects.damage(enemies[0], abil.value||3);
       }
       else if (abil.type === 'heal') {
         const allies = [...gameState.playerField.left, ...gameState.playerField.right];
-        if (allies[0]) result = Effects.heal(allies[0], 5);
+        if (allies[0]) result = CardEffects.heal(allies[0], 5);
       }
       else if (abil.type === 'copy' || abil.type === 'counter') {
         gameState.playerField.left.forEach(c=>{c.power+=2;c.armor+=1;});
@@ -517,7 +669,6 @@
     }
     
     function selectCard(who, row, idx) {
-      if (document.getElementById('cardTooltip').classList.contains('active')) return;
       const card = gameState.playerField[row][idx];
       showToast(`${card.name}\n⚔️${card.power} 🛡️${card.armor} ❤️${card.health}`);
     }
@@ -554,7 +705,6 @@
       return null;
     }
     
-    // Для index.html
     window.updateRating = function(result) {
       let r = parseInt(localStorage.getItem('playerRating')||'0');
       if (result==='win') r+=10; else if (result==='loss') r=Math.max(0,r-5); else if (result==='surrender') r=Math.max(0,r-4);
