@@ -15,7 +15,7 @@
       color: white;
       min-height: 100vh;
       padding: 10px;
-      padding-bottom: 80px;
+      padding-bottom: 100px;
       overflow-x: hidden;
     }
     
@@ -114,53 +114,97 @@
     .row {
       display: flex;
       flex-direction: column;
-      gap: 6px;
-      padding: 8px;
+      gap: 8px;
+      padding: 10px;
       border-radius: 8px;
       background: rgba(255,255,255,0.03);
       border: 1px solid rgba(255,255,255,0.1);
-      min-width: 70px;
+      min-width: 100px;
     }
     
     .row-label {
-      font-size: 10px;
+      font-size: 11px;
       text-align: center;
       color: #666;
       margin-bottom: 4px;
       text-transform: uppercase;
+      font-weight: 600;
     }
     
+    /* === УВЕЛИЧЕННЫЕ КАРТЫ НА ПОЛЕ === */
     .field-card {
-      width: 60px;
-      height: 70px;
-      border-radius: 6px;
+      width: 90px;
+      min-height: 120px;
+      border-radius: 8px;
       background: #2c3e50;
-      border: 2px solid rgba(255,255,255,0.2);
+      border: 3px solid rgba(255,255,255,0.3);
       display: flex;
       flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      font-size: 10px;
+      padding: 8px;
       position: relative;
       cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .field-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 5px 20px rgba(0,0,0,0.4);
     }
     
     .field-card.selected {
       border-color: #f1c40f;
-      box-shadow: 0 0 10px rgba(241, 196, 15, 0.5);
+      box-shadow: 0 0 15px rgba(241, 196, 15, 0.6);
+    }
+    
+    .field-card-type {
+      font-size: 8px;
+      padding: 3px 6px;
+      border-radius: 4px;
+      text-align: center;
+      font-weight: 700;
+      text-transform: uppercase;
+      margin-bottom: 5px;
+    }
+    
+    .field-card-type.white { background: #fff; color: #333; }
+    .field-card-type.gray { background: #95a5a6; color: #fff; }
+    .field-card-type.purple { background: #a233ff; color: #fff; }
+    .field-card-type.gold { background: #f1c40f; color: #333; }
+    .field-card-type.special { background: #e74c3c; color: #fff; }
+    
+    .field-card-name {
+      font-size: 11px;
+      font-weight: 700;
+      margin-bottom: 5px;
+      line-height: 1.2;
+      text-align: center;
+      min-height: 26px;
     }
     
     .field-card-power {
-      font-size: 16px;
+      font-size: 20px;
       font-weight: 700;
       color: #fff;
+      text-align: center;
+      margin: 5px 0;
     }
     
     .field-card-stats {
       display: flex;
-      gap: 4px;
-      margin-top: 4px;
+      gap: 6px;
+      justify-content: center;
+      font-size: 11px;
+      margin-bottom: 5px;
+    }
+    
+    .field-card-effect {
       font-size: 9px;
+      color: #888;
+      line-height: 1.3;
+      text-align: center;
+      border-top: 1px solid rgba(255,255,255,0.1);
+      padding-top: 5px;
+      margin-top: auto;
     }
     
     /* === СЧЁТ И PASS === */
@@ -201,12 +245,12 @@
     .score-value.lose { color: #e74c3c; }
     
     .pass-btn {
-      padding: 12px 30px;
+      padding: 15px 35px;
       border-radius: 10px;
       background: linear-gradient(135deg, #e74c3c, #c0392b);
       border: none;
       color: white;
-      font-size: 14px;
+      font-size: 16px;
       font-weight: 700;
       cursor: pointer;
       text-transform: uppercase;
@@ -310,7 +354,7 @@
       margin-top: 3px;
     }
     
-    /* === МОДАЛЬНОЕ ОКНО ВЫБОРА КАРТЫ === */
+    /* === МОДАЛЬНОЕ ОКНО === */
     .modal {
       display: none;
       position: fixed;
@@ -391,11 +435,12 @@
     .toast.show { opacity: 1; }
     
     @media (max-width: 480px) {
-      .row { min-width: 60px; }
-      .field-card { width: 50px; height: 60px; }
+      .field-card { width: 80px; min-height: 110px; }
+      .row { min-width: 85px; }
       .hand-card { width: 50px; height: 70px; }
       .score-box { min-width: 60px; }
       .score-value { font-size: 18px; }
+      .pass-btn { padding: 12px 25px; font-size: 14px; }
     }
   </style>
 </head>
@@ -403,9 +448,7 @@
   <!-- ВЕРХНЯЯ ЗОНА (ПРОТИВНИК) -->
   <div class="opponent-zone">
     <div class="leader-opponent" id="leaderOpponent">👤</div>
-    <div class="hand-opponent" id="handOpponent">
-      <!-- Карты противника (рубашкой вверх) -->
-    </div>
+    <div class="hand-opponent" id="handOpponent"></div>
     <div class="deck-zone">
       <div class="deck-pile">
         <span class="pile-count" id="deckOpponentCount">0</span>
@@ -422,11 +465,9 @@
       <div class="rows-container">
         <div class="row" id="opponentLeftRow">
           <div class="row-label">Левый</div>
-          <!-- Карты -->
         </div>
         <div class="row" id="opponentRightRow">
           <div class="row-label">Правый</div>
-          <!-- Карты -->
         </div>
       </div>
     </div>
@@ -453,11 +494,9 @@
       <div class="rows-container">
         <div class="row" id="playerLeftRow">
           <div class="row-label">Левый</div>
-          <!-- Карты -->
         </div>
         <div class="row" id="playerRightRow">
           <div class="row-label">Правый</div>
-          <!-- Карты -->
         </div>
       </div>
     </div>
@@ -466,9 +505,7 @@
   <!-- НИЖНЯЯ ЗОНА (ИГРОК) -->
   <div class="player-zone">
     <div class="leader-player" id="leaderPlayer" onclick="useLeaderAbility()">👑</div>
-    <div class="hand-player" id="handPlayer">
-      <!-- Карты игрока -->
-    </div>
+    <div class="hand-player" id="handPlayer"></div>
     <div class="deck-zone">
       <div class="deck-pile">
         <span class="pile-count" id="deckPlayerCount">0</span>
@@ -513,7 +550,8 @@
       opponentPass: false,
       round: 1,
       leaderUsed: false,
-      currentPlayer: 'player'
+      currentPlayer: 'player',
+      gameOver: false
     };
     
     // === ИНИЦИАЛИЗАЦИЯ ===
@@ -527,26 +565,20 @@
       const faction = localStorage.getItem('selectedFaction') || 'knights';
       gameState.playerFaction = faction;
       
-      // Загрузка сохранённой колоды
       const savedDeck = localStorage.getItem(`deck_${faction}`);
       if (savedDeck) {
         const cardIds = JSON.parse(savedDeck);
         gameState.playerDeck = cardIds.map(id => getCardById(id));
       } else {
-        // Демо-колода если нет сохранённой
         const factionData = FACTIONS[faction];
         gameState.playerDeck = factionData.cards.slice(0, 25);
       }
       
-      // Перемешиваем колоду
       shuffleArray(gameState.playerDeck);
-      
-      // Берём 10 карт в руку
       gameState.playerHand = gameState.playerDeck.splice(0, 10);
     }
     
     function initGame() {
-      // Инициализация противника (демо)
       const enemyFactions = ['mages', 'cultists', 'dryads'];
       const enemyFaction = enemyFactions[Math.floor(Math.random() * enemyFactions.length)];
       const enemyData = FACTIONS[enemyFaction];
@@ -564,6 +596,7 @@
       renderScores();
       renderDeckCounts();
       renderLeader();
+      updatePassButton();
     }
     
     function renderHand(who) {
@@ -576,10 +609,8 @@
         const cardEl = document.createElement('div');
         
         if (who === 'opponent') {
-          // Карты противника рубашкой вверх
           cardEl.className = 'card-back';
         } else {
-          // Карты игрока
           const typeColors = {
             white: '#fff',
             gray: '#95a5a6',
@@ -606,7 +637,6 @@
       const rightRow = document.getElementById(`${who}RightRow`);
       const field = gameState[who === 'player' ? 'playerField' : 'opponentField'];
       
-      // Очищаем только карты (оставляем label)
       leftRow.querySelectorAll('.field-card').forEach(el => el.remove());
       rightRow.querySelectorAll('.field-card').forEach(el => el.remove());
       
@@ -628,12 +658,25 @@
       const factionColor = FACTIONS[gameState.playerFaction].color;
       cardEl.style.borderColor = who === 'player' ? factionColor : '#666';
       
+      const typeColors = {
+        white: '#fff',
+        gray: '#95a5a6',
+        purple: '#a233ff',
+        gold: '#f1c40f',
+        special: '#e74c3c'
+      };
+      
+      const effectText = card.effect ? (card.effect.description || '').substring(0, 40) + (card.effect.description && card.effect.description.length > 40 ? '...' : '') : 'Нет эффекта';
+      
       cardEl.innerHTML = `
+        <div class="field-card-type" style="background: ${typeColors[card.type]}; color: ${['white', 'gold'].includes(card.type) ? '#333' : '#fff'}">${card.type.toUpperCase()}</div>
+        <div class="field-card-name">${card.name}</div>
         <div class="field-card-power">⚔️${card.power}</div>
         <div class="field-card-stats">
           <span>🛡️${card.armor}</span>
           <span>❤️${card.health}</span>
         </div>
+        <div class="field-card-effect">${effectText}</div>
       `;
       
       if (who === 'player') {
@@ -671,16 +714,28 @@
       }
     }
     
+    function updatePassButton() {
+      const passBtn = document.getElementById('passBtn');
+      if (gameState.playerPass) {
+        passBtn.classList.add('used');
+        passBtn.textContent = 'PASS ✓';
+        passBtn.disabled = true;
+      } else {
+        passBtn.classList.remove('used');
+        passBtn.textContent = 'PASS';
+        passBtn.disabled = false;
+      }
+    }
+    
     // === ИГРОВАЯ ЛОГИКА ===
     function playCard(handIndex) {
-      if (gameState.currentPlayer !== 'player') {
+      if (gameState.currentPlayer !== 'player' || gameState.gameOver) {
         showToast('Не ваш ход!');
         return;
       }
       
       const card = gameState.playerHand[handIndex];
       
-      // Выбор ряда (левый/правый)
       showModal('Выберите ряд', [
         { label: 'Левый ряд', action: () => placeCard(card, handIndex, 'left') },
         { label: 'Правый ряд', action: () => placeCard(card, handIndex, 'right') }
@@ -688,28 +743,21 @@
     }
     
     function placeCard(card, handIndex, row) {
-      // Проверка лимита карт в ряду
       if (gameState.playerField[row].length >= 4) {
         showToast('Ряд заполнен!');
         return;
       }
       
-      // Размещение карты
       gameState.playerField[row].push(card);
       gameState.playerHand.splice(handIndex, 1);
       
-      // Особые карты уходят в сброс сразу
       if (card.type === 'special' || card.discardAfterUse) {
         gameState.playerDiscard.push(card);
         gameState.playerField[row].pop();
       }
       
-      // Обновление очков
       calculateScore();
-      
-      // Завершение хода
       endTurn();
-      
       renderAll();
       closeModal();
       
@@ -717,7 +765,6 @@
     }
     
     function calculateScore() {
-      // Простой подсчёт силы всех карт на поле
       const playerScore = [
         ...gameState.playerField.left,
         ...gameState.playerField.right
@@ -733,19 +780,46 @@
     }
     
     function endTurn() {
-      gameState.currentPlayer = gameState.currentPlayer === 'player' ? 'opponent' : 'player';
+      if (gameState.gameOver) return;
       
-      if (gameState.currentPlayer === 'opponent') {
-        setTimeout(opponentTurn, 1000);
-      }
+      gameState.currentPlayer = 'opponent';
+      
+      // Противник делает ход через 1.5 секунды
+      setTimeout(opponentTurn, 1500);
     }
     
     function opponentTurn() {
-      // Простой ИИ: случайная карта в случайный ряд
-      if (gameState.opponentHand.length > 0) {
+      if (gameState.gameOver) return;
+      
+      // Умный ИИ: решает играть или пасовать
+      const shouldPass = shouldOpponentPass();
+      
+      if (shouldPass && !gameState.opponentPass) {
+        // Противник пасует
+        gameState.opponentPass = true;
+        showToast('Противник пропустил ход!');
+        
+        if (gameState.playerPass) {
+          // Оба пасанули - конец раунда
+          setTimeout(() => endRound(), 1000);
+        }
+      } else if (gameState.opponentHand.length > 0) {
+        // Противник играет карту
         const handIndex = Math.floor(Math.random() * gameState.opponentHand.length);
         const card = gameState.opponentHand[handIndex];
-        const row = Math.random() > 0.5 ? 'left' : 'right';
+        
+        // Выбирает ряд с меньшим количеством карт
+        const leftCount = gameState.opponentField.left.length;
+        const rightCount = gameState.opponentField.right.length;
+        let row = 'left';
+        
+        if (leftCount >= 4) {
+          row = 'right';
+        } else if (rightCount >= 4) {
+          row = 'left';
+        } else {
+          row = leftCount <= rightCount ? 'left' : 'right';
+        }
         
         if (gameState.opponentField[row].length < 4) {
           gameState.opponentField[row].push(card);
@@ -755,57 +829,88 @@
             gameState.opponentDiscard.push(card);
             gameState.opponentField[row].pop();
           }
+          
+          calculateScore();
+          showToast('Противник сыграл карту');
         }
       }
       
-      calculateScore();
       gameState.currentPlayer = 'player';
       renderAll();
     }
     
+    function shouldOpponentPass() {
+      // Простая логика: если очков больше чем у игрока и мало карт в руке
+      const opponentTotalPower = [
+        ...gameState.opponentField.left,
+        ...gameState.opponentField.right
+      ].reduce((sum, card) => sum + (card.power || 0), 0);
+      
+      const playerTotalPower = [
+        ...gameState.playerField.left,
+        ...gameState.playerField.right
+      ].reduce((sum, card) => sum + (card.power || 0), 0);
+      
+      // Пасует если:
+      // 1. Очков больше чем у игрока И (в руке мало карт ИЛИ поле почти заполнено)
+      const opponentFieldFull = gameState.opponentField.left.length + gameState.opponentField.right.length >= 7;
+      
+      return opponentTotalPower > playerTotalPower && 
+             (gameState.opponentHand.length <= 3 || opponentFieldFull);
+    }
+    
     function passTurn() {
-      if (gameState.playerPass) return;
+      if (gameState.playerPass || gameState.gameOver) return;
       
       gameState.playerPass = true;
-      document.getElementById('passBtn').classList.add('used');
-      document.getElementById('passBtn').textContent = 'PASS ✓';
-      
       showToast('Вы пропустили ход!');
       
-      // Если оба пропустили — конец раунда
       if (gameState.opponentPass) {
-        endRound();
+        // Оба пасанули
+        setTimeout(() => endRound(), 1000);
+      } else {
+        // Противник ещё может походить
+        gameState.currentPlayer = 'opponent';
+        setTimeout(opponentTurn, 1000);
       }
       
       renderAll();
     }
     
     function endRound() {
+      if (gameState.gameOver) return;
+      
       showToast(`Раунд ${gameState.round} завершён!`);
       
-      // Очистка поля (кроме золотых карт с persistBetweenRounds)
+      // Сохраняем золотые карты с persistBetweenRounds
       gameState.playerField.left = gameState.playerField.left.filter(c => c.persistBetweenRounds);
       gameState.playerField.right = gameState.playerField.right.filter(c => c.persistBetweenRounds);
+      
+      // Остальные карты в сброс
+      const playerDiscardedCards = [
+        ...gameState.playerField.left,
+        ...gameState.playerField.right
+      ];
+      gameState.playerDiscard.push(...playerDiscardedCards);
+      
+      // Очищаем поле противника
       gameState.opponentField.left = [];
       gameState.opponentField.right = [];
       
-      // Сброс в отбой
-      gameState.playerDiscard.push(...gameState.playerField.left, ...gameState.playerField.right);
-      
-      // Добор карт
+      // Добор карт (2 карты)
       const newCards = Math.min(2, gameState.playerDeck.length);
-      gameState.playerHand.push(...gameState.playerDeck.splice(0, newCards));
+      if (newCards > 0) {
+        gameState.playerHand.push(...gameState.playerDeck.splice(0, newCards));
+      }
       
-      // Сброс флагов
+      // Сбрасываем флаги пасов
       gameState.playerPass = false;
       gameState.opponentPass = false;
-      document.getElementById('passBtn').classList.remove('used');
-      document.getElementById('passBtn').textContent = 'PASS';
       
       gameState.round++;
       
       setTimeout(() => {
-        if (gameState.round > 3) {
+        if (gameState.round > 3 || gameState.playerDeck.length === 0) {
           endGame();
         } else {
           showToast(`Раунд ${gameState.round} начался!`);
@@ -815,23 +920,30 @@
     }
     
     function endGame() {
+      gameState.gameOver = true;
+      
       let message = '';
+      let emoji = '';
+      
       if (gameState.playerScore > gameState.opponentScore) {
-        message = '🏆 ПОБЕДА!';
+        message = 'ПОБЕДА!';
+        emoji = '🏆';
       } else if (gameState.playerScore < gameState.opponentScore) {
-        message = '💀 ПОРАЖЕНИЕ!';
+        message = 'ПОРАЖЕНИЕ!';
+        emoji = '💀';
       } else {
-        message = '🤝 НИЧЬЯ!';
+        message = 'НИЧЬЯ!';
+        emoji = '🤝';
       }
       
-      alert(`Игра окончена!\n\n${message}\n\nВаш счёт: ${gameState.playerScore}\nСчёт противника: ${gameState.opponentScore}`);
+      alert(`${emoji} ${message}\n\nВаш счёт: ${gameState.playerScore}\nСчёт противника: ${gameState.opponentScore}\n\nСпасибо за игру!`);
       
       // Возврат в меню
       window.location.href = 'index.html';
     }
     
     function useLeaderAbility() {
-      if (gameState.leaderUsed) {
+      if (gameState.leaderUsed || gameState.gameOver) {
         showToast('Способность уже использована!');
         return;
       }
@@ -844,7 +956,8 @@
     }
     
     function selectFieldCard(who, row, index) {
-      showToast(`Карта выбрана: ${gameState.playerField[row][index].name}`);
+      const card = gameState.playerField[row][index];
+      showToast(`${card.name}\n⚔️${card.power} 🛡️${card.armor} ❤️${card.health}`);
     }
     
     // === МОДАЛЬНОЕ ОКНО ===
