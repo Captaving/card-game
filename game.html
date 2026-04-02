@@ -600,3 +600,74 @@
   </script>
 </body>
 </html>
+// === ПОДКЛЮЧЕНИЕ К СЕРВЕРУ ===
+const SERVER_URL = 'http://твой-IP:3000'; // ЗАМЕНИ на свой IP!
+const socket = io(SERVER_URL, {
+  transports: ['websocket', 'polling'],
+  reconnection: true,
+  reconnectionAttempts: 5
+});
+
+let roomId = null;
+let isOnline = false;
+let playerId = null;
+
+// События Socket.io
+socket.on('connect', () => {
+  console.log('✅ Подключено к серверу:', socket.id);
+  playerId = socket.id;
+  isOnline = true;
+  showToast('🟢 Подключено к серверу');
+});
+
+socket.on('disconnect', () => {
+  console.log('❌ Отключено от сервера');
+  isOnline = false;
+  showToast('🔴 Потеряно соединение');
+});
+
+socket.on('room-created', (data) => {
+  roomId = data.roomId;
+  showToast(`🏠 Комната создана: ${roomId}`);
+  showRoomCode(roomId);
+});
+
+socket.on('game-start', (data) => {
+  showToast('🎮 Игра началась!');
+  isOnline = true;
+  // Синхронизация состояния
+  if (data.gameState) {
+    // Можно обновить gameState из data.gameState
+  }
+});
+
+socket.on('opponent-move', (data) => {
+  // Ход противника
+  console.log('👤 Противник сыграл:', data);
+  // Обнови поле противника
+  renderAll();
+});
+
+socket.on('opponent-pass', () => {
+  showToast('⏭️ Противник пропустил ход');
+  gameState.opponentPass = true;
+  if (gameState.playerPass) endRound();
+  renderAll();
+});
+
+socket.on('opponent-disconnected', () => {
+  showToast('❌ Противник вышел из игры');
+  alert('Противник отключился!\n\nВам засчитана победа.');
+  if (window.opener && window.opener.updateRating) {
+    window.opener.updateRating('win');
+  }
+  setTimeout(() => { window.location.href = 'index.html'; }, 2000);
+});
+
+socket.on('game-result', (data) => {
+  console.log('🏁 Результат:', data);
+});
+
+socket.on('error', (data) => {
+  showToast('❌ Ошибка: ' + data.message);
+});
