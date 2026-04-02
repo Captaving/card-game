@@ -201,7 +201,6 @@
     let clickTimer = null;
     let lastClickTarget = null;
     
-    // === ЭФФЕКТЫ КАРТ ===
     const CardEffects = {
       damage: (target, value) => { if (!target) return {ok:false}; target.health = (target.health||1) - value; return {ok:true, destroyed:target.health<=0, msg:`${target.name} получил ${value} урона`}; },
       heal: (target, value) => { if (!target) return {ok:false}; target.health = (target.health||0) + value; return {ok:true, msg:`${target.name} исцелён на ${value}`}; },
@@ -253,7 +252,6 @@
       }
     };
     
-    // === ОБРАБОТКА ЭФФЕКТОВ ===
     function handleCardEffect(card, context={}) {
       if (!card?.effect) return {ok:true, msg:'Нет эффекта'};
       const eff = card.effect;
@@ -280,9 +278,7 @@
       return {ok:true, msg:'Эффект активирован'};
     }
     
-    // === ИНИЦИАЛИЗАЦИЯ ===
     document.addEventListener('DOMContentLoaded', () => {
-      // Проверка выбора лидера
       if (!gameState.playerLeader) {
         alert('⚠️ Выберите лидера в конструкторе колоды!\n\nПеренаправление...');
         window.location.href = 'deckbuilder.html';
@@ -317,7 +313,6 @@
       gameState.opponentHand = gameState.opponentDeck.splice(0, 10);
     }
     
-    // === ОТРИСОВКА ===
     function renderAll() {
       renderHand('player'); renderHand('opponent');
       renderField('player'); renderField('opponent');
@@ -364,7 +359,6 @@
       return el;
     }
     
-    // === ДВОЙНОЕ НАЖАТИЕ ===
     function setupDoubleClick(el, singleClickHandler, doubleClickHandler) {
       el.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -384,7 +378,6 @@
       });
     }
     
-    // === ПОКАЗ ИНФОРМАЦИИ ===
     function showCardEffect(card) {
       const eff = card.effect ? (card.effect.description || 'Есть эффект') : 'Нет эффекта';
       const html = `
@@ -483,7 +476,6 @@
       else { btn.classList.remove('used'); btn.textContent = 'PASS'; btn.disabled = false; }
     }
     
-    // === ИГРОВАЯ ЛОГИКА ===
     function playCard(idx) {
       if (gameState.currentPlayer !== 'player' || gameState.gameOver) { showToast('Не ваш ход!'); return; }
       const card = gameState.playerHand[idx];
@@ -499,7 +491,6 @@
       gameState.playerField[row].push(card);
       gameState.playerHand.splice(idx, 1);
       
-      // Обработка эффекта карты
       if (card.effect) {
         const result = handleCardEffect(card, {row});
         if (result?.msg) showToast(result.msg);
@@ -525,7 +516,6 @@
     function opponentTurn() {
       if (gameState.gameOver) return;
       
-      // Бот играет карту или пасует
       const shouldPass = Math.random() > 0.7 || (gameState.opponentField.left.length+gameState.opponentField.right.length >= 7);
       
       if (shouldPass && !gameState.opponentPass) {
@@ -556,11 +546,9 @@
       
       if (isOnlineGame && roomId) socket.emit('pass-turn', { roomId });
       
-      // Бот сразу делает ход
       gameState.currentPlayer = 'opponent';
       setTimeout(() => {
         opponentTurn();
-        // Если оба пасанули - конец раунда
         if (gameState.opponentPass) {
           setTimeout(endRound, 1000);
         }
@@ -573,7 +561,6 @@
       if (gameState.gameOver) return;
       showToast(`🔄 Раунд ${gameState.round} завершён!`);
       
-      // Все карты в отбой
       gameState.playerDiscard.push(...gameState.playerField.left, ...gameState.playerField.right);
       gameState.opponentDiscard.push(...gameState.opponentField.left, ...gameState.opponentField.right);
       
@@ -582,7 +569,6 @@
       gameState.opponentField.left = [];
       gameState.opponentField.right = [];
       
-      // Добор карт
       const draw = Math.min(2, gameState.playerDeck.length);
       if (draw > 0) gameState.playerHand.push(...gameState.playerDeck.splice(0, draw));
       
@@ -629,7 +615,7 @@
         localStorage.setItem('playerRating', String(r));
       }
       
-      alert(`${emoji||''} ${msg}\n\nВаш счёт: ${gameState.playerScore}\nСчёт противника: ${gameState.opponentScore}\n\nРаундов: ${gameState.round-1}`);
+      alert(`${msg}\n\nВаш счёт: ${gameState.playerScore}\nСчёт противника: ${gameState.opponentScore}\n\nРаундов: ${gameState.round-1}`);
       localStorage.removeItem('selectedFaction'); localStorage.removeItem('roomId');
       window.location.href = 'index.html';
     }
