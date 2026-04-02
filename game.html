@@ -7,7 +7,7 @@
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="https://cdn.socket.io/4.6.0/socket.io.min.js"></script>
   <script src="config.js"></script>
-  <script src="effects.js"></script>
+  <!-- УБРАЛ effects.js -->
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); color: white; padding: 10px; padding-bottom: 100px; }
@@ -201,6 +201,99 @@
     let playerRating = parseInt(localStorage.getItem('playerRating') || '0');
     let clickTimer = null;
     let lastClickTarget = null;
+    
+    // === ПРОСТЫЕ ЭФФЕКТЫ (встроены в файл) ===
+    function handleCardEffect(card, context={}) {
+      if (!card?.effect) return {ok:true, msg:'Нет эффекта'};
+      const eff = card.effect;
+      const row = context.row || 'left';
+      
+      // Урон
+      if (eff.action === 'damage') {
+        const enemies = [...gameState.opponentField.left, ...gameState.opponentField.right];
+        if (enemies[0]) {
+          enemies[0].health = (enemies[0].health||1) - (eff.value||1);
+          return {ok:true, msg:`${enemies[0].name} получил урон`};
+        }
+      }
+      
+      // Лечение
+      if (eff.action === 'heal') {
+        const allies = [...gameState.playerField.left, ...gameState.playerField.right];
+        if (allies[0]) {
+          allies[0].health = (allies[0].health||0) + (eff.value||2);
+          return {ok:true, msg:`${allies[0].name} исцелён`};
+        }
+      }
+      
+      // Усиление
+      if (eff.action === 'buff') {
+        const allies = gameState.playerField[row]?.filter(c => c.id !== card.id) || [];
+        if (allies[0]) {
+          allies[0][eff.stat||'power'] = (allies[0][eff.stat||'power']||0) + (eff.value||2);
+          return {ok:true, msg:`${allies[0].name} усилен`};
+        }
+      }
+      
+      // Призыв
+      if (eff.action === 'summon' && eff.card) {
+        const faction = FACTIONS[gameState.playerFaction];
+        const template = faction?.cards?.find(c => c.id === eff.card);
+        if (template && gameState.playerField[row].length < 4) {
+          gameState.playerField[row].push({...template});
+          return {ok:true, msg:'Карта призвана'};
+        }
+      }
+      
+      // Апокалипсис - проверка комбо
+      if (eff.action === 'apocalypse_combo') {
+        const allCards = [...gameState.playerField.left, ...gameState.playerField.right];
+        const names = allCards.map(c => c.name.toLowerCase());
+        if (names.includes('смерть') && names.includes('голод') && names.includes('война') && names.includes('чума')) {
+          const faction = FACTIONS[gameState.playerFaction];
+          const apocalypse = faction?.cards?.find(c => c.name.toLowerCase() === 'апокалипсис');
+          if (apocalypse) {
+            const enemies = [...gameState.opponentField.left, ...gameState.opponentField.right];
+            if (enemies[0]) {
+              enemies[0].health = 0;
+              gameState.playerDiscard.push(apocalypse);
+              return {ok:true, msg:'🔥 АПОКАЛИПСИС! Карта уничтожена!'};
+            }
+          }
+        }
+      }
+      
+      return {ok:true, msg:'Эффект активирован'};
+    }
+    
+    function handleLeaderAbility(faction, leaderIdx) {
+      const leader = FACTIONS[faction]?.leaders?.[leaderIdx];
+      if (!leader?.ability) return {ok:false, msg:'Способность не найдена'};
+      
+      const abil = leader.ability;
+      
+      if (abil.type === 'damage') {
+        const enemies = [...gameState.opponentField.left, ...gameState.opponentField.right];
+        if (enemies[0]) {
+          enemies[0].health = (enemies[0].health||1) - (abil.value||3);
+          return {ok:true, msg:`${enemies[0].name} получил урон`};
+        }
+      }
+      else if (abil.type === 'heal') {
+        const allies = [...gameState.playerField.left, ...gameState.playerField.right];
+        if (allies[0]) {
+          allies[0].health = (allies[0].health||0) + 5;
+          return {ok:true, msg:`${allies[0].name} исцелён`};
+        }
+      }
+      else if (abil.type === 'copy' || abil.type === 'counter') {
+        gameState.playerField.left.forEach(c => { c.power+=2; c.armor+=1; });
+        gameState.playerField.right.forEach(c => { c.power+=2; c.armor+=1; });
+        return {ok:true, msg:'Все карты усилены!'};
+      }
+      
+      return {ok:true, msg:abil.description || 'Способность активирована!'};
+    }
     
     document.addEventListener('DOMContentLoaded', () => {
       if (!gameState.playerLeader) {
@@ -417,14 +510,8 @@
       
       // Обработка эффекта карты
       if (card.effect) {
-        const result = handleCardEffect(card, {row, gameState});
+        const result = handleCardEffect(card, {row});
         if (result?.msg) showToast(result.msg);
-      }
-      
-      // Проверка комбо Апокалипсиса
-      const apocalypseResult = checkApocalypseCombo(gameState);
-      if (apocalypseResult.ok) {
-        showToast(apocalypseResult.msg);
       }
       
       if (card.type === 'special' || card.discardAfterUse) { 
@@ -563,7 +650,7 @@
       const faction = gameState.playerFaction;
       const leaderIdx = gameState.playerLeader || 0;
       
-      const result = handleLeaderAbility(faction, leaderIdx, gameState);
+      const result = handleLeaderAbility(faction, leaderIdx);
       
       if (result?.ok) {
         showToast(result.msg);
