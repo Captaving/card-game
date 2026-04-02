@@ -21,6 +21,7 @@
     }
     .header { text-align: center; padding: 15px 0; margin-bottom: 20px; }
     .header h1 { font-size: 24px; font-weight: 700; margin-bottom: 5px; background: linear-gradient(90deg, #3498db, #926eae); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .header p { color: #888; font-size: 13px; }
     .player-info { display: flex; align-items: center; gap: 12px; padding: 12px; background: rgba(255,255,255,0.05); border-radius: 12px; margin-bottom: 20px; }
     .player-avatar { width: 50px; height: 50px; border-radius: 50%; background: linear-gradient(135deg, #3498db, #926eae); display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 700; }
     .player-details { flex: 1; }
@@ -65,6 +66,9 @@
     .loading { text-align: center; padding: 20px; color: #888; }
     .error-box { background: rgba(231, 76, 60, 0.2); border: 1px solid #e74c3c; padding: 15px; border-radius: 10px; margin-bottom: 20px; display: none; }
     .debug-info { font-size: 11px; color: #666; margin-top: 20px; text-align: center; }
+    .online-status { display: flex; align-items: center; gap: 8px; padding: 10px; background: rgba(46, 204, 113, 0.1); border: 1px solid #2ecc71; border-radius: 10px; margin-bottom: 15px; }
+    .online-dot { width: 10px; height: 10px; border-radius: 50%; background: #2ecc71; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
   </style>
 </head>
 <body>
@@ -73,7 +77,6 @@
     <p style="color: #888; font-size: 13px;">Собирай колоду и сражайся!</p>
   </div>
   
-  <!-- Ошибка -->
   <div class="error-box" id="errorBox">
     <strong>⚠️ Ошибка:</strong> <span id="errorMessage"></span>
     <button onclick="retryInit()" style="margin-top: 10px; padding: 8px 15px; background: #e74c3c; border: none; border-radius: 5px; color: white; cursor: pointer;">Попробовать снова</button>
@@ -85,6 +88,11 @@
       <div class="player-name" id="playerName">Загрузка...</div>
       <div class="player-rating">⭐ <span id="playerRating">0</span> очков</div>
     </div>
+  </div>
+  
+  <div class="online-status" id="onlineStatus" style="display: none;">
+    <div class="online-dot"></div>
+    <span style="font-size: 13px; color: #2ecc71;">Сервер онлайн</span>
   </div>
   
   <div class="stats-grid" id="statsGrid" style="display: none;">
@@ -106,16 +114,19 @@
   
   <div class="menu-buttons" id="menuButtons" style="display: none;">
     <button class="menu-btn primary" onclick="startGame()">
-      <span>⚔️</span> Начать игру
+      <span>🤖</span> Игра с ботом
     </button>
-    <button class="menu-btn success" onclick="inviteFriend()">
-      <span>👥</span> Пригласить друга
+    <button class="menu-btn success" onclick="startOnlineGame()">
+      <span>🌐</span> Онлайн игра
     </button>
     <button class="menu-btn info" onclick="showLeaderboard()">
       <span>🏆</span> Таблица лидеров
     </button>
     <button class="menu-btn warning" onclick="goToDeckBuilder()">
       <span>🃏</span> Собрать колоду
+    </button>
+    <button class="menu-btn" style="background: rgba(146, 110, 174, 0.2);" onclick="inviteFriend()">
+      <span>👥</span> Пригласить друга
     </button>
   </div>
   
@@ -144,7 +155,6 @@
   </div>
   
   <div class="debug-info" id="debugInfo"></div>
-  
   <div class="toast" id="toast"></div>
 
   <script>
@@ -167,6 +177,7 @@
     let firebaseInitialized = false;
     let currentUser = null;
     let userStats = { rating: 0, wins: 0, losses: 0, faction: null };
+    let serverConnected = false;
     
     // Инициализация Firebase
     try {
@@ -191,23 +202,15 @@
       const debugEl = document.getElementById('debugInfo');
       
       try {
-        // Ждём Telegram (максимум 5 секунд)
         await Promise.race([
           new Promise(resolve => {
-            if (tg.ready) {
-              tg.ready();
-              tg.expand();
-              resolve();
-            } else {
-              resolve();
-            }
+            if (tg.ready) { tg.ready(); tg.expand(); resolve(); }
+            else { resolve(); }
           }),
           new Promise((_, reject) => setTimeout(() => reject(new Error('Telegram timeout')), 5000))
         ]);
         
         console.log('✅ Telegram готов');
-        
-        // Получаем пользователя
         const tgUser = tg.initDataUnsafe?.user;
         console.log('👤 Telegram пользователь:', tgUser ? 'найден' : 'не найден');
         
@@ -218,28 +221,15 @@
             firstName: tgUser.first_name,
             lastName: tgUser.last_name || ''
           };
-          
-          // Загружаем статистику
           if (firebaseInitialized) {
-            try {
-              await loadUserStats();
-            } catch (e) {
-              console.warn('⚠️ Не удалось загрузить статистику:', e);
-              userStats = { rating: 0, wins: 0, losses: 0, faction: null };
-            }
+            try { await loadUserStats(); }
+            catch (e) { console.warn('⚠️ Не удалось загрузить статистику:', e); userStats = { rating: 0, wins: 0, losses: 0, faction: null }; }
           }
         } else {
-          // Гостевой режим
-          currentUser = {
-            id: 'guest_' + Math.random().toString(36).substr(2, 9),
-            username: 'Guest',
-            firstName: 'Гость',
-            lastName: ''
-          };
+          currentUser = { id: 'guest_' + Math.random().toString(36).substr(2, 9), username: 'Guest', firstName: 'Гость', lastName: '' };
           console.log('🔸 Гостевой режим');
         }
         
-        // Показываем интерфейс
         loadingEl.style.display = 'none';
         document.getElementById('playerInfo').style.display = 'flex';
         document.getElementById('statsGrid').style.display = 'grid';
@@ -251,20 +241,13 @@
           showToast('Выберите фракцию для начала!');
         }
         
-        // Отладка
-        debugEl.innerHTML = `
-          Telegram: ${tgUser ? '✅' : '❌'} | 
-          Firebase: ${firebaseInitialized ? '✅' : '❌'} | 
-          User: ${currentUser?.username}
-        `;
+        debugEl.innerHTML = `Telegram: ${tgUser ? '✅' : '❌'} | Firebase: ${firebaseInitialized ? '✅' : '❌'} | User: ${currentUser?.username}`;
         
       } catch (e) {
         console.error('❌ Ошибка инициализации:', e);
         loadingEl.style.display = 'none';
         errorBox.style.display = 'block';
         document.getElementById('errorMessage').textContent = e.message;
-        
-        // Всё равно показываем интерфейс (гостевой режим)
         currentUser = { id: 'guest', username: 'Гость', firstName: 'Гость', lastName: '' };
         document.getElementById('playerInfo').style.display = 'flex';
         document.getElementById('statsGrid').style.display = 'grid';
@@ -276,24 +259,15 @@
     
     async function loadUserStats() {
       if (!db || !currentUser) return;
-      
       try {
         const docRef = db.collection('users').doc(currentUser.id);
         const docSnap = await docRef.get();
-        
-        if (docSnap.exists) {
-          userStats = docSnap.data();
-        } else {
-          await docRef.set({
-            rating: 0, wins: 0, losses: 0, faction: null,
-            createdAt: firebase.firestore.FieldValue.serverTimestamp()
-          });
+        if (docSnap.exists) { userStats = docSnap.data(); }
+        else {
+          await docRef.set({ rating: 0, wins: 0, losses: 0, faction: null, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
           userStats = { rating: 0, wins: 0, losses: 0, faction: null };
         }
-      } catch (e) {
-        console.error('Firebase error:', e);
-        throw e;
-      }
+      } catch (e) { console.error('Firebase error:', e); throw e; }
     }
     
     function updatePlayerUI() {
@@ -314,28 +288,25 @@
         }
         document.getElementById('factionSelect').style.display = 'none';
         showToast(`Фракция выбрана: ${FACTIONS[faction].name}!`);
-      } catch (e) {
-        showToast('Ошибка сохранения (но фракция выбрана)');
-      }
+      } catch (e) { showToast('Ошибка сохранения (но фракция выбрана)'); }
     }
     
     function startGame() {
-      if (!userStats.faction) {
-        showToast('Сначала выберите фракцию!');
-        document.getElementById('factionSelect').style.display = 'block';
-        return;
-      }
+      if (!userStats.faction) { showToast('Сначала выберите фракцию!'); document.getElementById('factionSelect').style.display = 'block'; return; }
       localStorage.setItem('selectedFaction', userStats.faction);
       localStorage.setItem('playerRating', userStats.rating);
       window.location.href = 'game.html';
     }
     
+    function startOnlineGame() {
+      if (!userStats.faction) { showToast('Сначала выберите фракцию!'); document.getElementById('factionSelect').style.display = 'block'; return; }
+      localStorage.setItem('selectedFaction', userStats.faction);
+      localStorage.setItem('playerRating', userStats.rating);
+      window.location.href = 'multiplayer.html';
+    }
+    
     function goToDeckBuilder() {
-      if (!userStats.faction) {
-        showToast('Сначала выберите фракцию!');
-        document.getElementById('factionSelect').style.display = 'block';
-        return;
-      }
+      if (!userStats.faction) { showToast('Сначала выберите фракцию!'); document.getElementById('factionSelect').style.display = 'block'; return; }
       localStorage.setItem('selectedFaction', userStats.faction);
       window.location.href = 'deckbuilder.html';
     }
@@ -343,15 +314,9 @@
     async function inviteFriend() {
       const inviteText = `🎮 Присоединяйся к Карточной Битве!\n\nСобирай колоду, сражайся с друзьями и поднимайся в рейтинге!\n\nИграть: https://t.me/CardBattleTestBot`;
       try {
-        if (tg.switchInlineQuery) {
-          tg.switchInlineQuery(inviteText);
-        } else {
-          await navigator.clipboard.writeText(inviteText);
-          showToast('Ссылка скопирована! Отправь другу');
-        }
-      } catch (e) {
-        showToast('Ошибка при отправке');
-      }
+        if (tg.switchInlineQuery) { tg.switchInlineQuery(inviteText); }
+        else { await navigator.clipboard.writeText(inviteText); showToast('Ссылка скопирована! Отправь другу'); }
+      } catch (e) { showToast('Ошибка при отправке'); }
     }
     
     async function showLeaderboard() {
@@ -362,20 +327,11 @@
     async function loadLeaderboard() {
       const listEl = document.getElementById('leaderboardList');
       listEl.innerHTML = '<div class="loading">Загрузка...</div>';
-      
-      if (!firebaseInitialized || !db) {
-        listEl.innerHTML = '<div class="loading" style="color: #f39c12;">Firebase не подключён<br>Лидерборд недоступен</div>';
-        return;
-      }
-      
+      if (!firebaseInitialized || !db) { listEl.innerHTML = '<div class="loading" style="color: #f39c12;">Firebase не подключён<br>Лидерборд недоступен</div>'; return; }
       try {
         const snapshot = await db.collection('users').orderBy('rating', 'desc').limit(20).get();
-        if (snapshot.empty) {
-          listEl.innerHTML = '<div class="loading">Пока нет игроков</div>';
-          return;
-        }
-        let html = '';
-        let rank = 1;
+        if (snapshot.empty) { listEl.innerHTML = '<div class="loading">Пока нет игроков</div>'; return; }
+        let html = ''; let rank = 1;
         snapshot.forEach((doc) => {
           const data = doc.data();
           const isCurrentUser = doc.id === currentUser.id;
@@ -392,14 +348,10 @@
           rank++;
         });
         listEl.innerHTML = html;
-      } catch (e) {
-        listEl.innerHTML = '<div class="loading" style="color: #e74c3c;">Ошибка загрузки</div>';
-      }
+      } catch (e) { listEl.innerHTML = '<div class="loading" style="color: #e74c3c;">Ошибка загрузки</div>'; }
     }
     
-    function closeLeaderboard() {
-      document.getElementById('leaderboardModal').classList.remove('active');
-    }
+    function closeLeaderboard() { document.getElementById('leaderboardModal').classList.remove('active'); }
     
     async function updateRating(result) {
       let ratingChange = 0;
@@ -409,16 +361,10 @@
       userStats.rating = Math.max(0, userStats.rating + ratingChange);
       try {
         if (firebaseInitialized && db) {
-          await db.collection('users').doc(currentUser.id).update({
-            rating: userStats.rating,
-            wins: userStats.wins,
-            losses: userStats.losses
-          });
+          await db.collection('users').doc(currentUser.id).update({ rating: userStats.rating, wins: userStats.wins, losses: userStats.losses });
         }
         updatePlayerUI();
-      } catch (e) {
-        console.error('Error updating rating:', e);
-      }
+      } catch (e) { console.error('Error updating rating:', e); }
     }
     
     function showToast(message) {
@@ -428,12 +374,11 @@
       setTimeout(() => toast.classList.remove('show'), 2500);
     }
     
-    function retryInit() {
-      location.reload();
-    }
+    function retryInit() { location.reload(); }
     
     window.selectFaction = selectFaction;
     window.startGame = startGame;
+    window.startOnlineGame = startOnlineGame;
     window.goToDeckBuilder = goToDeckBuilder;
     window.inviteFriend = inviteFriend;
     window.showLeaderboard = showLeaderboard;
