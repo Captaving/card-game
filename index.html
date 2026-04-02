@@ -186,4 +186,31 @@
     // Демонстрация случайных карт
     const demoCards = [
       { name: 'Пехотинец', type: 'white', power: 2, armor: 1, health: 2, influence: 2, effect: 'Нет' },
-      { name: 'Рыцарь Ордена', type: 'gray', power: 
+      { name: 'Рыцарь Ордена', type: 'gray', power: 5, armor: 4, health: 4, influence: 4, effect: '' },
+      { name: 'Воин Света', type: 'purple', power: 1, armor: 1, health: 6, influence: 5, effect: '+2 к силе союзнику' },
+      { name: 'Король Аугуст', type: 'gold', power: 6, armor: 6, health: 8, influence: 20, effect: 'Двойная активация' },
+      { name: 'Бомба', type: 'special', power: 0, armor: 0, health: 0, influence: 5, effect: '4 урона врагу' }
+    ];
+
+    function showRandomCard() {
+      const card = demoCards[Math.floor(Math.random() * demoCards.length)];
+      const preview = document.getElementById('preview');
+      
+      preview.querySelector('.card-type').className = `card-type ${card.type}`;
+      preview.querySelector('.card-type').textContent = card.type.toUpperCase();
+      preview.querySelector('.card-name').textContent = card.name;
+      preview.querySelector('.card-stats').innerHTML = `
+        <span>⚔️ ${card.power}</span>
+        <span>🛡️ ${card.armor}</span>
+        <span>❤️ ${card.health}</span>
+      `;
+      preview.querySelector('.card-influence').textContent = `Влияние: ${card.influence}`;
+      preview.querySelector('.card-effect').textContent = `Эффект: ${card.effect || 'Нет'}`;
+    }
+
+    // Меняем карту каждые 3 секунды
+    setInterval(showRandomCard, 3000);
+    showRandomCard();
+  </script>
+</body>
+</html>
