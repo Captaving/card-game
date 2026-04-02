@@ -9,7 +9,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js"></script>
   <script src="config.js"></script>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
@@ -34,7 +34,7 @@
     .stat-value.losses { color: #e74c3c; }
     .stat-value.rating { color: #f1c40f; }
     .menu-buttons { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
-    .menu-btn { padding: 16px 20px; border: none; border-radius: 12px; background: rgba(52, 152, 219, 0.15); color: white; font-size: 16px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 12px; transition: all 0.2s; }
+    .menu-btn { padding: 16px 20px; border: none; border-radius: 12px; background: rgba(52, 152, 219, 0.15); color: white; font-size: 16px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 12px; }
     .menu-btn:active { transform: scale(0.98); }
     .menu-btn.primary { background: linear-gradient(135deg, #3498db, #2980b9); }
     .menu-btn.success { background: linear-gradient(135deg, #2ecc71, #27ae60); }
@@ -63,12 +63,20 @@
     .toast { position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); padding: 12px 25px; border-radius: 25px; font-size: 14px; z-index: 2000; opacity: 0; transition: opacity 0.3s; }
     .toast.show { opacity: 1; }
     .loading { text-align: center; padding: 20px; color: #888; }
+    .error-box { background: rgba(231, 76, 60, 0.2); border: 1px solid #e74c3c; padding: 15px; border-radius: 10px; margin-bottom: 20px; display: none; }
+    .debug-info { font-size: 11px; color: #666; margin-top: 20px; text-align: center; }
   </style>
 </head>
 <body>
   <div class="header">
     <h1>⚔️ Карточная Битва</h1>
     <p style="color: #888; font-size: 13px;">Собирай колоду и сражайся!</p>
+  </div>
+  
+  <!-- Ошибка -->
+  <div class="error-box" id="errorBox">
+    <strong>⚠️ Ошибка:</strong> <span id="errorMessage"></span>
+    <button onclick="retryInit()" style="margin-top: 10px; padding: 8px 15px; background: #e74c3c; border: none; border-radius: 5px; color: white; cursor: pointer;">Попробовать снова</button>
   </div>
   
   <div class="player-info" id="playerInfo" style="display: none;">
@@ -94,7 +102,7 @@
     </div>
   </div>
   
-  <div class="loading" id="loading">Загрузка...</div>
+  <div class="loading" id="loading">⏳ Загрузка...</div>
   
   <div class="menu-buttons" id="menuButtons" style="display: none;">
     <button class="menu-btn primary" onclick="startGame()">
@@ -135,9 +143,12 @@
     </div>
   </div>
   
+  <div class="debug-info" id="debugInfo"></div>
+  
   <div class="toast" id="toast"></div>
 
   <script>
+    // === FIREBASE CONFIG ===
     const firebaseConfig = {
       apiKey: "AIzaSyDv2aMIyNPZazXZFsHRBbHhb2GKYMTGInY",
       authDomain: "card-game-eb9f1.firebaseapp.com",
@@ -148,70 +159,145 @@
       measurementId: "G-8RGKPHBKHJ"
     };
     
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
-    
+    // === TELEGRAM INIT ===
     const tg = window.Telegram.WebApp;
-    tg.expand();
-    tg.ready();
+    console.log('🔵 Telegram Web App:', !!tg);
     
+    let db = null;
+    let firebaseInitialized = false;
     let currentUser = null;
     let userStats = { rating: 0, wins: 0, losses: 0, faction: null };
     
-    document.addEventListener('DOMContentLoaded', async () => {
-      await initUser();
+    // Инициализация Firebase
+    try {
+      firebase.initializeApp(firebaseConfig);
+      db = firebase.firestore();
+      firebaseInitialized = true;
+      console.log('✅ Firebase инициализирован');
+    } catch (e) {
+      console.error('❌ Firebase ошибка:', e);
+      firebaseInitialized = false;
+    }
+    
+    // === INIT ===
+    document.addEventListener('DOMContentLoaded', () => {
+      console.log('📄 DOM загружен');
+      initUser();
     });
     
     async function initUser() {
-      document.getElementById('loading').style.display = 'block';
-      const tgUser = tg.initDataUnsafe?.user;
+      const loadingEl = document.getElementById('loading');
+      const errorBox = document.getElementById('errorBox');
+      const debugEl = document.getElementById('debugInfo');
       
-      if (tgUser) {
-        currentUser = {
-          id: tgUser.id.toString(),
-          username: tgUser.username || tgUser.first_name,
-          firstName: tgUser.first_name,
-          lastName: tgUser.last_name || ''
-        };
-        await loadUserStats();
-        document.getElementById('loading').style.display = 'none';
+      try {
+        // Ждём Telegram (максимум 5 секунд)
+        await Promise.race([
+          new Promise(resolve => {
+            if (tg.ready) {
+              tg.ready();
+              tg.expand();
+              resolve();
+            } else {
+              resolve();
+            }
+          }),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Telegram timeout')), 5000))
+        ]);
+        
+        console.log('✅ Telegram готов');
+        
+        // Получаем пользователя
+        const tgUser = tg.initDataUnsafe?.user;
+        console.log('👤 Telegram пользователь:', tgUser ? 'найден' : 'не найден');
+        
+        if (tgUser) {
+          currentUser = {
+            id: tgUser.id.toString(),
+            username: tgUser.username || tgUser.first_name,
+            firstName: tgUser.first_name,
+            lastName: tgUser.last_name || ''
+          };
+          
+          // Загружаем статистику
+          if (firebaseInitialized) {
+            try {
+              await loadUserStats();
+            } catch (e) {
+              console.warn('⚠️ Не удалось загрузить статистику:', e);
+              userStats = { rating: 0, wins: 0, losses: 0, faction: null };
+            }
+          }
+        } else {
+          // Гостевой режим
+          currentUser = {
+            id: 'guest_' + Math.random().toString(36).substr(2, 9),
+            username: 'Guest',
+            firstName: 'Гость',
+            lastName: ''
+          };
+          console.log('🔸 Гостевой режим');
+        }
+        
+        // Показываем интерфейс
+        loadingEl.style.display = 'none';
         document.getElementById('playerInfo').style.display = 'flex';
         document.getElementById('statsGrid').style.display = 'grid';
         document.getElementById('menuButtons').style.display = 'flex';
         updatePlayerUI();
+        
         if (!userStats.faction) {
           document.getElementById('factionSelect').style.display = 'block';
           showToast('Выберите фракцию для начала!');
         }
-      } else {
-        currentUser = { id: 'guest_' + Math.random().toString(36).substr(2, 9), username: 'Guest', firstName: 'Гость', lastName: '' };
-        document.getElementById('loading').style.display = 'none';
+        
+        // Отладка
+        debugEl.innerHTML = `
+          Telegram: ${tgUser ? '✅' : '❌'} | 
+          Firebase: ${firebaseInitialized ? '✅' : '❌'} | 
+          User: ${currentUser?.username}
+        `;
+        
+      } catch (e) {
+        console.error('❌ Ошибка инициализации:', e);
+        loadingEl.style.display = 'none';
+        errorBox.style.display = 'block';
+        document.getElementById('errorMessage').textContent = e.message;
+        
+        // Всё равно показываем интерфейс (гостевой режим)
+        currentUser = { id: 'guest', username: 'Гость', firstName: 'Гость', lastName: '' };
         document.getElementById('playerInfo').style.display = 'flex';
         document.getElementById('statsGrid').style.display = 'grid';
         document.getElementById('menuButtons').style.display = 'flex';
         document.getElementById('factionSelect').style.display = 'block';
         updatePlayerUI();
-        showToast('Режим гостя. Войдите через Telegram!');
       }
     }
     
     async function loadUserStats() {
+      if (!db || !currentUser) return;
+      
       try {
         const docRef = db.collection('users').doc(currentUser.id);
         const docSnap = await docRef.get();
+        
         if (docSnap.exists) {
           userStats = docSnap.data();
         } else {
-          await docRef.set({ rating: 0, wins: 0, losses: 0, faction: null, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+          await docRef.set({
+            rating: 0, wins: 0, losses: 0, faction: null,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+          });
           userStats = { rating: 0, wins: 0, losses: 0, faction: null };
         }
-      } catch (error) {
-        console.error('Error:', error);
-        showToast('Ошибка загрузки данных');
+      } catch (e) {
+        console.error('Firebase error:', e);
+        throw e;
       }
     }
     
     function updatePlayerUI() {
+      if (!currentUser) return;
       document.getElementById('playerAvatar').textContent = currentUser.firstName.charAt(0).toUpperCase();
       document.getElementById('playerName').textContent = currentUser.username || currentUser.firstName;
       document.getElementById('playerRating').textContent = userStats.rating;
@@ -223,11 +309,13 @@
     async function selectFaction(faction) {
       userStats.faction = faction;
       try {
-        await db.collection('users').doc(currentUser.id).update({ faction: faction });
+        if (firebaseInitialized && db) {
+          await db.collection('users').doc(currentUser.id).update({ faction: faction });
+        }
         document.getElementById('factionSelect').style.display = 'none';
         showToast(`Фракция выбрана: ${FACTIONS[faction].name}!`);
-      } catch (error) {
-        showToast('Ошибка сохранения');
+      } catch (e) {
+        showToast('Ошибка сохранения (но фракция выбрана)');
       }
     }
     
@@ -261,7 +349,7 @@
           await navigator.clipboard.writeText(inviteText);
           showToast('Ссылка скопирована! Отправь другу');
         }
-      } catch (error) {
+      } catch (e) {
         showToast('Ошибка при отправке');
       }
     }
@@ -274,6 +362,12 @@
     async function loadLeaderboard() {
       const listEl = document.getElementById('leaderboardList');
       listEl.innerHTML = '<div class="loading">Загрузка...</div>';
+      
+      if (!firebaseInitialized || !db) {
+        listEl.innerHTML = '<div class="loading" style="color: #f39c12;">Firebase не подключён<br>Лидерборд недоступен</div>';
+        return;
+      }
+      
       try {
         const snapshot = await db.collection('users').orderBy('rating', 'desc').limit(20).get();
         if (snapshot.empty) {
@@ -298,7 +392,7 @@
           rank++;
         });
         listEl.innerHTML = html;
-      } catch (error) {
+      } catch (e) {
         listEl.innerHTML = '<div class="loading" style="color: #e74c3c;">Ошибка загрузки</div>';
       }
     }
@@ -314,9 +408,17 @@
       else if (result === 'surrender') { ratingChange = -4; userStats.losses++; }
       userStats.rating = Math.max(0, userStats.rating + ratingChange);
       try {
-        await db.collection('users').doc(currentUser.id).update({ rating: userStats.rating, wins: userStats.wins, losses: userStats.losses });
+        if (firebaseInitialized && db) {
+          await db.collection('users').doc(currentUser.id).update({
+            rating: userStats.rating,
+            wins: userStats.wins,
+            losses: userStats.losses
+          });
+        }
         updatePlayerUI();
-      } catch (error) { console.error('Error:', error); }
+      } catch (e) {
+        console.error('Error updating rating:', e);
+      }
     }
     
     function showToast(message) {
@@ -326,6 +428,10 @@
       setTimeout(() => toast.classList.remove('show'), 2500);
     }
     
+    function retryInit() {
+      location.reload();
+    }
+    
     window.selectFaction = selectFaction;
     window.startGame = startGame;
     window.goToDeckBuilder = goToDeckBuilder;
@@ -333,6 +439,7 @@
     window.showLeaderboard = showLeaderboard;
     window.closeLeaderboard = closeLeaderboard;
     window.updateRating = updateRating;
+    window.retryInit = retryInit;
   </script>
 </body>
 </html>
