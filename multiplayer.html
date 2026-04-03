@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Онлайн Бой</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="socket-client.js"></script>
+    <style>
+        body { background: #1a1a1a; color: white; font-family: sans-serif; padding: 20px; text-align: center; }
+        .status { margin-bottom: 20px; font-weight: bold; color: #f1c40f; }
+        .lobby-box { background: #2c2c2c; padding: 20px; border-radius: 12px; margin-top: 20px; display: none; }
+        .player-slot { padding: 10px; margin: 10px 0; background: #444; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; }
+        .ready-badge { color: #2ecc71; font-weight: bold; display: none; }
+        .player-slot.ready .ready-badge { display: inline; }
+        
+        .btn-group { display: flex; gap: 10px; justify-content: center; margin-top: 20px; }
+        .btn { padding: 12px 24px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; flex: 1; max-width: 150px; }
+        .btn-search { background: #3498db; color: white; }
+        .btn-invite { background: #9b59b6; color: white; }
+        .btn-ready { background: #2ecc71; color: white; }
+        .btn-not-ready { background: #e74c3c; color: white; }
+        .btn-cancel { background: #7f8c8d; color: white; }
+        
+        #timer { font-size: 40px; font-weight: bold; color: #e74c3c; margin: 20px 0; display: none; }
+    </style>
+</head>
+<body>
+    <h2>🌐 Онлайн Бой</h2>
+    <div id="status" class="status">Ожидание соединения...</div>
+
+    <!-- Меню поиска -->
+    <div id="search-menu">
+        <div class="btn-group">
+            <button class="btn btn-search" onclick="findMatch()">🔍 Подбор игрока</button>
+            <button class="btn btn-invite" onclick="inviteFriend()">📩 Пригласить друга</button>
+        </div>
+    </div>
+
+    <!-- Лобби комнаты -->
+    <div id="lobby" class="lobby-box">
+        <h3>Комната: <span id="room-id">...</span></h3>
+        
+        <div class="player-slot" id="slot-p1">
+            <span>Вы (<span id="my-name">...</span>)</span>
+            <span class="ready-badge">ГОТОВ ✅</span>
+        </div>
+        <div class="player-slot" id="slot-p2">
+            <span>Ожидание соперника...</span>
+            <span class="ready-badge">ГОТОВ ✅</span>
+        </div>
+
+        <div id="timer">10</div>
+
+        <div class="btn-group" id="controls">
+            <button class="btn btn-ready" onclick="toggleReady(true)">ГОТОВ</button>
+            <button class="btn btn-not-ready" onclick="toggleReady(false)" style="display:none">НЕ ГОТОВ</button>
+            <button class="btn btn-cancel" onclick="leaveLobby()">Отмена</button>
+        </div>
+    </div>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+        
+        // UI Helpers
+        const ui = {
+            status: document.getElementById('status'),
+            searchMenu: document.getElementById('search-menu'),
+            lobby: document.getElementById('lobby'),
+            roomId: document.getElementById('room-id'),
+            slotP2: document.getElementById('slot-p2'),
+            myName: document.getElementById('my-name'),
+            btnReady: document.querySelector('.btn-ready'),
+            btnNotReady: document.querySelector('.btn-notReady'),
+            timer: document.getElementById('timer'),
+            controls: document.getElementById('controls')
+        };
+
+        ui.myName.innerText = tg.initDataUnsafe?.user?.first_name || 'Игрок';
+
+        // Подключаемся при загрузке
+        socketClient.connect();
+
+        // Интерфейс лобби (глобальный объект для socket-client.js)
+        window.lobbyUI = {
+            onRoomCreated: (data) => {
+                ui.searchMenu.style.display = 'none';
+                ui.lobby.style.display = 'block';
+                ui.roomId.innerText = data.roomId;
+                ui.status.innerText = 'Ожидание соперника...';
+            },
+            onPlayerJoined: (data) => {
+                ui.slotP2.innerHTML = `<span>${data.username}</span><span class="ready-badge">ГОТОВ ✅</span>`;
+                ui.status.innerText = 'Соперник найден!';
+                tg.HapticFeedback.notificationOccurred('success');
+            },
+            onPlayerReady: (data) => {
+                if (data.playerId !== socketClient.socket.id) {
+                    ui.slotP2.classList.add('ready');
+                } else {
+                    document.getElementById('slot-p1').classList.add('ready');
+                }
+                
+                // Проверка готовности обоих
+                if (ui.slotP2.classList.contains('ready') && document.getElementById('slot-p1').classList.contains('ready')) {
+                    // Ждем сигнала от сервера на старт
+                }
+            },
+            startCountdown: (seconds) => {
+                ui.controls.style.display = 'none';
+                ui.timer.style.display = 'block';
+                let left = seconds;
+                ui.timer.innerText = left;
+                
+                const interval = setInterval(() => {
+                    left--;
+                    ui.timer.innerText = left;
+                    if (left <= 0) {
+                        clearInterval(interval);
+                        startGameOnline();
+                    }
+                }, 1000);
+            }
+        };
+
+        function findMatch() {
+            ui.status.innerText = 'Поиск соперника...';
+            socketClient.findMatch();
+        }
+
+        function inviteFriend() {
+            // Открываем нативный шеринг Telegram
+            const link = `https://t.me/share/url?url=https://t.me/YOUR_BOT_NAME?start=invite_${tg.initDataUnsafe.user.id}&text=Приглашаю тебя в битву карт!`;
+            tg.openTelegramLink(link);
+            // В реальном проекте нужно использовать WebApp.sendData или invokeMethod для инвайтов
+        }
+
+        function toggleReady(isReady) {
+            socketClient.toggleReady(isReady);
+            if (isReady) {
+                ui.btnReady.style.display = 'none';
+                ui.btnNotReady.style.display = 'inline-block';
+                document.getElementById('slot-p1').classList.add('ready');
+            } else {
+                ui.btnReady.style.display = 'inline-block';
+                ui.btnNotReady.style.display = 'none';
+                document.getElementById('slot-p1').classList.remove('ready');
+            }
+        }
+
+        function leaveLobby() {
+            socketClient.leaveLobby();
+            location.reload();
+        }
+
+        function startGameOnline() {
+            // Переход в игру с флагом онлайн
+            window.location.href = 'game.html?mode=online';
+        }
+        
+        // Обновление статуса подключения
+        window.setupUI = {
+            updateStatus: (status) => {
+                if(status === 'connected') ui.status.innerText = 'Подключено к серверу';
+                else ui.status.innerText = 'Ошибка соединения';
+            }
+        };
+    </script>
+</body>
+</html>

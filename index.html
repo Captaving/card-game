@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Card Battle TG</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; overflow: hidden; }
+        .screen { display: none; width: 100%; height: 100vh; flex-direction: column; box-sizing: border-box; padding: 20px; position: absolute; top: 0; left: 0; background: var(--tg-theme-bg-color, #1a1a1a); color: var(--tg-theme-text-color, #ffffff); }
+        .screen.active { display: flex; }
+        
+        /* Menu Styles */
+        .menu-container { justify-content: center; align-items: center; text-align: center; }
+        h1 { font-size: 28px; margin-bottom: 30px; text-shadow: 0 2px 4px rgba(0,0,0,0.3); }
+        .btn-menu {
+            width: 100%; max-width: 320px; padding: 16px; margin-bottom: 15px; border: none; border-radius: 14px;
+            font-size: 18px; font-weight: 700; cursor: pointer; color: white;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2); transition: transform 0.1s;
+        }
+        .btn-menu:active { transform: scale(0.96); }
+        .btn-pve { background: linear-gradient(135deg, #3498db, #2980b9); }
+        .btn-pvp { background: linear-gradient(135deg, #e67e22, #d35400); }
+        .btn-deck { background: linear-gradient(135deg, #95a5a6, #7f8c8d); }
+        .btn-back { background: rgba(255,255,255,0.1); margin-top: auto; }
+
+        /* Deck Select Modal */
+        .deck-list { flex: 1; overflow-y: auto; width: 100%; max-width: 400px; margin: 0 auto; }
+        .deck-item {
+            background: rgba(255,255,255,0.08); padding: 15px; margin-bottom: 10px;
+            border-radius: 12px; display: flex; justify-content: space-between; align-items: center;
+            cursor: pointer; border: 2px solid transparent;
+        }
+        .deck-item.selected { border-color: #2ecc71; background: rgba(46, 204, 113, 0.1); }
+        .deck-info h3 { margin: 0 0 5px 0; font-size: 16px; }
+        .deck-info p { margin: 0; font-size: 12px; opacity: 0.7; }
+        .btn-create-new { width: 100%; max-width: 400px; padding: 14px; background: #2ecc71; color: white; border: none; border-radius: 12px; font-weight: bold; margin: 0 auto 20px auto; display: block; }
+
+        /* Online Lobby */
+        .lobby-status { text-align: center; margin-bottom: 20px; font-size: 18px; font-weight: bold; }
+        .lobby-timer { font-size: 32px; color: #e74c3c; font-weight: bold; text-align: center; margin: 20px 0; display: none; }
+        .lobby-actions { display: flex; flex-direction: column; gap: 15px; max-width: 300px; margin: 0 auto; width: 100%; }
+        .btn-lobby { padding: 15px; border: none; border-radius: 12px; font-size: 16px; font-weight: bold; color: white; cursor: pointer; }
+        .btn-find { background: #3498db; }
+        .btn-invite { background: #9b59b6; }
+        .btn-ready { background: #2ecc71; }
+        .btn-not-ready { background: #e74c3c; display: none; }
+        .friend-list { max-height: 200px; overflow-y: auto; background: rgba(0,0,0,0.2); border-radius: 8px; margin-top: 10px; display: none; }
+        .friend-item { padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-between; align-items: center; }
+        .btn-invite-friend { background: #f1c40f; color: #000; border: none; padding: 5px 10px; border-radius: 5px; font-size: 12px; cursor: pointer; }
+
+        .loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 1000; display: none; justify-content: center; align-items: center; flex-direction: column; color: white; }
+    </style>
+</head>
+<body>
+
+    <!-- Loading Screen -->
+    <div id="loading" class="loading-overlay">
+        <div style="font-size: 24px; margin-bottom: 10px;">⏳ Загрузка...</div>
+        <div id="loading-text" style="font-size: 14px; opacity: 0.7;">Инициализация карт</div>
+    </div>
+
+    <!-- Main Menu -->
+    <div id="screen-menu" class="screen menu-container active">
+        <h1>⚔️ Битва Карт</h1>
+        <button onclick="openDeckSelect('pve')" class="btn-menu btn-pve">🎮 Игра с ботом</button>
+        <button onclick="openDeckSelect('pvp')" class="btn-menu btn-pvp">🌐 Онлайн бой</button>
+        <button onclick="window.location.href='deckbuilder.html'" class="btn-menu btn-deck">🛠 Конструктор колод</button>
+        <button onclick="window.location.href='saved-decks.html'" class="btn-menu btn-deck">📂 Мои колоды</button>
+        <div id="user-info" style="margin-top: 20px; font-size: 13px; opacity: 0.6;"></div>
+    </div>
+
+    <!-- Deck Selection Screen -->
+    <div id="screen-deck-select" class="screen">
+        <h2 style="text-align: center;">Выберите колоду</h2>
+        <p style="text-align: center; opacity: 0.7; font-size: 14px; margin-bottom: 20px;">
+            Для матча (<span id="match-type-label"></span>)
+        </p>
+        
+        <button onclick="createTempDeck()" class="btn-create-new">➕ Создать новую для матча</button>
+        
+        <div id="deck-list-container" class="deck-list">
+            <!-- Deck items injected here -->
+        </div>
+
+        <button onclick="showScreen('screen-menu')" class="btn-menu btn-back">❌ Отмена</button>
+    </div>
+
+    <!-- Online Lobby Screen -->
+    <div id="screen-lobby" class="screen">
+        <h2 style="text-align: center;">Онлайн Лобби</h2>
+        <div id="lobby-status" class="lobby-status">Ожидание игрока...</div>
+        <div id="lobby-timer" class="lobby-timer">10</div>
+        
+        <div class="lobby-actions">
+            <button id="btn-find-match" onclick="findMatch()" class="btn-lobby btn-find">🔍 Подбор игроков</button>
+            <button id="btn-invite-block" onclick="toggleInvitePanel()" class="btn-lobby btn-invite">📩 Пригласить друга</button>
+            
+            <div id="invite-panel" class="friend-list">
+                <div style="padding:10px; font-size:12px; opacity:0.7;">Друзья из Telegram:</div>
+                <div id="friends-list-content"></div>
+            </div>
+
+            <button id="btn-ready" onclick="setReady(true)" class="btn-lobby btn-ready">✅ ГОТОВ</button>
+            <button id="btn-not-ready" onclick="setReady(false)" class="btn-lobby btn-not-ready">❌ НЕ ГОТОВ</button>
+        </div>
+
+        <button onclick="leaveLobby()" class="btn-menu btn-back" style="margin-top: auto;">Покинуть лобби</button>
+    </div>
+
+    <script src="config.js"></script>
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+        tg.ready();
+
+        // --- Global State ---
+        let currentMode = null; // 'pve' or 'pvp'
+        let tempDeckForMatch = null;
+        let socket = null;
+        let isReady = false;
+        let roomCode = null;
+
+        // --- Init ---
+        document.addEventListener('DOMContentLoaded', () => {
+            // Theme setup
+            document.body.style.backgroundColor = tg.themeParams.bg_color || '#1a1a1a';
+            document.body.style.color = tg.themeParams.text_color || '#ffffff';
+
+            // User Info
+            const user = tg.initDataUnsafe?.user;
+            if (user) {
+                document.getElementById('user-info').innerHTML = `${user.first_name} ${user.last_name || ''}`;
+            }
+
+            // Check Config Load
+            setTimeout(() => {
+                if (typeof FACTIONS !== 'undefined' && Object.keys(FACTIONS).length > 0) {
+                    document.getElementById('loading').style.display = 'none';
+                } else {
+                    document.getElementById('loading-text').innerText = 'Ошибка загрузки config.js!';
+                    document.getElementById('loading-text').style.color = 'red';
+                }
+            }, 1000);
+        });
+
+        // --- Navigation ---
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(screenId).classList.add('active');
+        }
+
+        // --- Deck Selection Logic ---
+        function openDeckSelect(mode) {
+            currentMode = mode;
+            document.getElementById('match-type-label').innerText = mode === 'pve' ? 'Против бота' : 'Онлайн матч';
+            renderSavedDecks();
+            showScreen('screen-deck-select');
+        }
+
+        function renderSavedDecks() {
+            const container = document.getElementById('deck-list-container');
+            container.innerHTML = '';
+            
+            let hasDecks = false;
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key.startsWith('deck_')) {
+                    hasDecks = true;
+                    const name = key.replace('deck_', '');
+                    const deckData = JSON.parse(localStorage.getItem(key));
+                    
+                    const div = document.createElement('div');
+                    div.className = 'deck-item';
+                    div.innerHTML = `
+                        <div class="deck-info">
+                            <h3>${name}</h3>
+                            <p>${deckData.length} карт | Влияние: ${deckData.reduce((s,c)=>s+(c.influence||0),0)}</p>
+                        </div>
+                        <div style="font-size:20px;">➡️</div>
+                    `;
+                    div.onclick = () => selectDeck(deckData, name);
+                    container.appendChild(div);
+                }
+            }
+
+            if (!hasDecks) {
+                container.innerHTML = '<div style="text-align:center; opacity:0.6; margin-top:20px;">Нет сохраненных колод.<br>Создайте новую!</div>';
+            }
+        }
+
+        function selectDeck(deckData, name) {
+            tempDeckForMatch = deckData;
+            tg.HapticFeedback.selectionChanged();
+            
+            // Visual feedback
+            document.querySelectorAll('.deck-item').forEach(el => el.classList.remove('selected'));
+            event.currentTarget.classList.add('selected');
+
+            setTimeout(() => {
+                startGameFlow();
+            }, 300);
+        }
+
+        function createTempDeck() {
+            // Redirect to builder with a flag to return back or just save to temp variable
+            // For simplicity, we redirect to builder. The builder needs to know to return to game.
+            // We'll store a flag in sessionStorage
+            sessionStorage.setItem('returnToGame', 'true');
+            window.location.href = 'deckbuilder.html?mode=temp';
+        }
+
+        function startGameFlow() {
+            if (!tempDeckForMatch) {
+                tg.showAlert('Сначала выберите или создайте колоду!');
+                return;
+            }
+
+            if (currentMode === 'pve') {
+                // Start Bot Game immediately
+                localStorage.setItem('currentMatchDeck', JSON.stringify(tempDeckForMatch));
+                window.location.href = 'game.html';
+            } else if (currentMode === 'pvp') {
+                // Go to Lobby
+                initSocket();
+                showScreen('screen-lobby');
+            }
+        }
+
+        // --- Online / Socket Logic ---
+        function initSocket() {
+            if (socket) socket.disconnect();
+            
+            // Connect to provided IP
+            socket = io('http://193.148.59.127', {
+                transports: ['websocket', 'polling'],
+                reconnection: true
+            });
+
+            const userId = tg.initDataUnsafe?.user?.id || 'guest_' + Math.random();
+
+            socket.on('connect', () => {
+                console.log('Connected to server');
+                document.getElementById('lobby-status').innerText = 'Подключено к серверу';
+                socket.emit('register', { userId, username: tg.initDataUnsafe?.user?.first_name });
+            });
+
+            socket.on('match_found', (data) => {
+                roomCode = data.roomId;
+                document.getElementById('lobby-status').innerText = 'Игрок найден! Ожидание готовности...';
+                document.getElementById('btn-find-match').style.display = 'none';
+                loadFriends(); // Load friends for invite if needed
+            });
+
+            socket.on('opponent_ready', () => {
+                document.getElementById('lobby-status').innerText = 'Противник готов!';
+                checkBothReady();
+            });
+
+            socket.on('opponent_not_ready', () => {
+                document.getElementById('lobby-status').innerText = 'Противник отменил готовность.';
+            });
+
+            socket.on('game_start', (data) => {
+                // Save opponent deck if sent, or just start
+                localStorage.setItem('currentMatchDeck', JSON.stringify(tempDeckForMatch));
+                // Pass room info if needed via URL params or global var
+                window.location.href = `game.html?room=${roomCode}&mode=pvp`;
+            });
+
+            socket.on('timer_start', (seconds) => {
+                const timerEl = document.getElementById('lobby-timer');
+                timerEl.style.display = 'block';
+                timerEl.innerText = seconds;
+                if(seconds <= 0) {
+                    timerEl.style.display = 'none';
+                }
+            });
+        }
+
+        function findMatch() {
+            if (!tempDeckForMatch) return;
+            socket.emit('find_match', { 
+                userId: tg.initDataUnsafe?.user?.id, 
+                deck: tempDeckForMatch // Sending deck preview or ID
+            });
+            document.getElementById('lobby-status').innerText = 'Поиск соперника...';
+        }
+
+        function toggleInvitePanel() {
+            const panel = document.getElementById('invite-panel');
+            panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
+            loadFriends();
+        }
+
+        function loadFriends() {
+            // Mocking friends list from TG WebApp or Server
+            // In real TG Mini App, you use SwitchInlineQuery or specific TG methods
+            const list = document.getElementById('friends-list-content');
+            list.innerHTML = '<div style="padding:10px;">Загрузка друзей...</div>';
+            
+            // Simulating friends for demo (TG doesn't give direct friend list via simple API without bot interaction)
+            // We will use the "Invite via Link" method primarily
+            list.innerHTML = `
+                <div class="friend-item">
+                    <span>Пригласить по ссылке</span>
+                    <button class="btn-invite-friend" onclick="sendInviteLink()">Отправить</button>
+                </div>
+            `;
+        }
+
+        function sendInviteLink() {
+            const botUsername = 'CardBattleTestBot'; // REPLACE WITH YOUR BOT
+            const link = `https://t.me/${botUsername}?start=invite_${tg.initDataUnsafe?.user?.id}`;
+            
+            tg.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(link)}&text=Сыграй со мной в битву карт!`);
+            
+            // Or use switch inline query if configured
+            // tg.switchInlineQuery('invite_game');
+        }
+
+        function setReady(ready) {
+            isReady = ready;
+            socket.emit('set_ready', { roomId: roomCode, ready: ready });
+            
+            document.getElementById('btn-ready').style.display = ready ? 'none' : 'block';
+            document.getElementById('btn-not-ready').style.display = ready ? 'block' : 'none';
+            document.getElementById('lobby-status').innerText = ready ? 'Вы готовы!' : 'Ожидание...';
+            
+            if(ready) checkBothReady();
+        }
+
+        function checkBothReady() {
+            // Logic handled by server usually, but client can request start if both ready
+            // Server should emit game_start
+        }
+
+        function leaveLobby() {
+            if(socket) socket.disconnect();
+            showScreen('screen-menu');
+            document.getElementById('btn-find-match').style.display = 'block';
+            document.getElementById('btn-ready').style.display = 'block';
+            document.getElementById('btn-not-ready').style.display = 'none';
+            document.getElementById('lobby-timer').style.display = 'none';
+        }
+
+        // Handle return from temp deck creation
+        window.addEventListener('storage', (e) => {
+            if (e.key === 'tempDeckCreated') {
+                tempDeckForMatch = JSON.parse(e.newValue);
+                startGameFlow();
+            }
+        });
+        
+        // Check if we returned from builder with temp deck
+        if (sessionStorage.getItem('returnToGame') === 'true' && window.location.search.includes('created')) {
+             // Logic to retrieve temp deck from session or local storage temporary key
+             const temp = localStorage.getItem('temp_deck_session');
+             if(temp) {
+                 tempDeckForMatch = JSON.parse(temp);
+                 sessionStorage.removeItem('returnToGame');
+                 startGameFlow();
+             }
+        }
+
+    </script>
+</body>
+</html>

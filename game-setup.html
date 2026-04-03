@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Выбор колоды</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body { background: #1a1a1a; color: white; font-family: sans-serif; padding: 20px; }
+        .deck-option { background: #333; padding: 15px; margin-bottom: 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; }
+        .btn-create { width: 100%; padding: 15px; background: #3498db; color: white; border: none; border-radius: 8px; font-size: 16px; margin-bottom: 20px; }
+        .btn-select { background: #2ecc71; color: white; border: none; padding: 8px 15px; border-radius: 5px; }
+        h2 { text-align: center; }
+    </style>
+</head>
+<body>
+    <h2>Выберите колоду для матча</h2>
+    <button class="btn-create" onclick="createNewTempDeck()">🛠 Создать новую (для этого матча)</button>
+    <div id="decks-list"></div>
+
+    <script src="config.js"></script>
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+        const urlParams = new URLSearchParams(window.location.search);
+        const mode = urlParams.get('mode') || 'bot'; // 'bot' или 'online'
+
+        function loadDecks() {
+            const list = document.getElementById('decks-list');
+            list.innerHTML = '';
+            let hasDecks = false;
+
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key.startsWith('deck_')) {
+                    hasDecks = true;
+                    const data = JSON.parse(localStorage.getItem(key));
+                    const name = key.replace('deck_', '').split('_')[0]; // Упрощенное имя
+                    
+                    const div = document.createElement('div');
+                    div.className = 'deck-option';
+                    div.innerHTML = `
+                        <div>
+                            <strong>${name}</strong><br>
+                            <small>${data.length} карт</small>
+                        </div>
+                        <button class="btn-select" onclick="startGame('${key}')">Играть</button>
+                    `;
+                    list.appendChild(div);
+                }
+            }
+            if (!hasDecks) list.innerHTML = '<p style="text-align:center; opacity:0.6">Нет сохраненных колод</p>';
+        }
+
+        function createNewTempDeck() {
+            // Переход в конструктор, но с флагом "временная"
+            localStorage.setItem('temp_deck_mode', 'true');
+            window.location.href = `deckbuilder.html?mode=${mode}&temp=true`;
+        }
+
+        function startGame(deckKey) {
+            // Сохраняем выбор в sessionStorage для текущего сеанса
+            sessionStorage.setItem('current_match_deck', deckKey);
+            
+            if (mode === 'online') {
+                window.location.href = 'multiplayer.html';
+            } else {
+                window.location.href = 'game.html'; // Запуск с ботом
+            }
+        }
+
+        // Проверка, вернулись ли мы из конструктора с временной колодой
+        window.addEventListener('storage', (e) => {
+            if (e.key === 'temp_deck_ready') {
+                startGame('temp_deck');
+            }
+        });
+
+        loadDecks();
+    </script>
+</body>
+</html>
