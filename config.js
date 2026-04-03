@@ -1,12 +1,12 @@
 const GAME_CONFIG = {
   maxDeckSize: 25,
-  maxInfluence: 170,  // 
+  maxInfluence: 170,
   maxCardsPerRow: 4,
   rounds: 3,
   startingHand: 10,
   cardsPerRound: 1,
   maxMulligan: 3
-};};
+};
 
 // === ФРАКЦИИ И КАРТЫ ===
 const FACTIONS = {};

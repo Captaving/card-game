@@ -150,12 +150,22 @@
     tg.expand();
     tg.ready();
     
+    // Используем тему Telegram
+    const theme = tg.themeParams || {};
+    const bgColor = theme.bg_color || '#1a1a2e';
+    const textColor = theme.text_color || 'white';
+    const buttonColor = theme.button_color || '#3498db';
+    
     let currentUser = tg.initDataUnsafe?.user || { first_name: 'Гость' };
     let userStats = { rating: 0, faction: null };
     
     document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('playerAvatar').textContent = currentUser.first_name.charAt(0).toUpperCase();
       document.getElementById('playerName').textContent = currentUser.first_name;
+      
+      // Применяем тему Telegram
+      document.body.style.background = `linear-gradient(135deg, ${bgColor} 0%, #16213e 100%)`;
+      document.body.style.color = textColor;
       
       const savedFaction = localStorage.getItem('selectedFaction');
       if (savedFaction) userStats.faction = savedFaction;
