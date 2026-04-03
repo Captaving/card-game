@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Конструктор Колод</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        :root {
+            --bg-color: #1a1a1a;
+            --text-color: #ffffff;
+            --card-bg: #2c3e50;
+            --accent: #3498db;
+            --danger: #e74c3c;
+            --success: #2ecc71;
+        }
+        body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg-color); color: var(--text-color); padding-bottom: 80px; }
+        
+        /* Header & Stats */
+        .header { position: sticky; top: 0; background: rgba(26,26,26,0.95); backdrop-filter: blur(5px); z-index: 100; padding: 10px; border-bottom: 1px solid #444; }
+        .stats-bar { display: flex; justify-content: space-between; margin-bottom: 10px; font-weight: bold; font-size: 14px; }
+        .stat-item span { margin-left: 5px; }
+        .count-ok { color: var(--success); }
+        .count-error { color: var(--danger); }
+
+        /* Faction Filter */
+        .faction-filter { display: flex; gap: 5px; overflow-x: auto; padding-bottom: 5px; scrollbar-width: none; }
+        .faction-btn {
+            flex: 0 0 auto; padding: 8px 12px; border: none; border-radius: 20px;
+            background: #444; color: #fff; font-size: 12px; cursor: pointer; white-space: nowrap;
+            transition: transform 0.1s;
+        }
+        .faction-btn.active { transform: scale(1.05); font-weight: bold; box-shadow: 0 0 8px rgba(255,255,255,0.3); }
+        .faction-btn.all { background: #7f8c8d; }
+
+        /* Card Grid */
+        .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 8px; padding: 10px; }
+        .card {
+            background: var(--card-bg); border-radius: 6px; padding: 5px;
+            display: flex; flex-direction: column; align-items: center; text-align: center;
+            font-size: 10px; position: relative; cursor: pointer; border: 1px solid #444;
+            user-select: none;
+        }
+        .card:active { transform: scale(0.95); }
+        .card-cost { position: absolute; top: -5px; left: -5px; background: #926eae; color: white; border-radius: 50%; width: 18px; height: 18px; line-height: 18px; font-weight: bold; font-size: 11px; border: 1px solid #fff; }
+        .card-name { font-weight: 600; margin: 4px 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; height: 28px; }
+        .card-stats { display: flex; gap: 4px; font-size: 11px; margin-top: 2px; }
+        .stat-icon { font-size: 10px; }
+        .card-count { position: absolute; bottom: 2px; right: 2px; background: rgba(0,0,0,0.7); padding: 1px 4px; border-radius: 4px; font-size: 9px; }
+        
+        /* Rarity Colors */
+        .rarity-white { border-bottom: 2px solid #ecf0f1; }
+        .rarity-gray { border-bottom: 2px solid #95a5a6; }
+        .rarity-purple { border-bottom: 2px solid #9b59b6; }
+        .rarity-gold { border-bottom: 2px solid #f1c40f; }
+        .rarity-special { border-bottom: 2px solid #e74c3c; }
+
+        /* Bottom Action Bar */
+        .action-bar {
+            position: fixed; bottom: 0; left: 0; width: 100%;
+            background: #222; padding: 15px; box-sizing: border-box;
+            display: flex; gap: 10px; border-top: 1px solid #444;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.5);
+        }
+        .btn { flex: 1; padding: 12px; border: none; border-radius: 8px; font-weight: bold; font-size: 14px; cursor: pointer; }
+        .btn-save { background: var(--success); color: white; }
+        .btn-clear { background: var(--danger); color: white; }
+        .btn-back { background: #555; color: white; flex: 0.5; }
+
+        /* Modal */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-content { background: #333; padding: 20px; border-radius: 12px; width: 80%; max-width: 300px; text-align: center; }
+        .modal input { width: 100%; padding: 10px; margin: 10px 0; border-radius: 5px; border: none; box-sizing: border-box; }
+        .modal-buttons { display: flex; gap: 10px; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div class="stats-bar">
+        <div class="stat-item">Карты: <span id="count-display" class="count-ok">0/25</span></div>
+        <div class="stat-item">Влияние: <span id="influence-display" class="count-ok">0/170</span></div>
+    </div>
+    
+    <div class="faction-filter" id="faction-filter">
+        <button class="faction-btn all active" onclick="filterFaction('all')">Все</button>
+        <!-- Кнопки фракций добавятся через JS -->
+    </div>
+</div>
+
+<div class="card-grid" id="card-grid">
+    <!-- Карты добавятся через JS -->
+</div>
+
+<div class="action-bar">
+    <button class="btn btn-back" onclick="window.location.href='index.html'">⬅</button>
+    <button class="btn btn-clear" onclick="clearDeck()">Очистить</button>
+    <button class="btn btn-save" onclick="showSaveModal()">Сохранить</button>
+</div>
+
+<!-- Модальное окно сохранения -->
+<div id="save-modal" class="modal">
+    <div class="modal-content">
+        <h3>Сохранить колоду</h3>
+        <input type="text" id="deck-name-input" placeholder="Название колоды" maxlength="20">
+        <div class="modal-buttons">
+            <button class="btn btn-back" onclick="closeSaveModal()">Отмена</button>
+            <button class="btn btn-save" onclick="saveDeck()">OK</button>
+        </div>
+    </div>
+</div>
+
+<script src="config.js"></script>
+<script>
+    const tg = window.Telegram.WebApp;
+    tg.expand();
+    
+    // Применение темы
+    document.body.style.backgroundColor = tg.themeParams.bg_color || '#1a1a1a';
+    document.body.style.color = tg.themeParams.text_color || '#ffffff';
+
+    let currentDeck = [];
+    let currentFilter = 'all';
+    let deckInfluence = 0;
+
+    // Инициализация
+    function init() {
+        if (typeof FACTIONS === 'undefined') {
+            alert('Ошибка: config.js не загружен!');
+            return;
+        }
+
+        renderFactionButtons();
+        renderCards();
+        updateStats();
+    }
+
+    // Рендер кнопок фракций
+    function renderFactionButtons() {
+        const container = document.getElementById('faction-filter');
+        // Очищаем всё кроме кнопки "Все"
+        const allBtn = container.querySelector('.all');
+        container.innerHTML = '';
+        container.appendChild(allBtn);
+
+        for (const key in FACTIONS) {
+            const faction = FACTIONS[key];
+            const btn = document.createElement('button');
+            btn.className = 'faction-btn';
+            btn.style.borderColor = faction.color;
+            btn.style.background = faction.color + '40'; // Прозрачный фон
+            btn.innerText = faction.name.split(' ')[0]; // Короткое имя
+            btn.onclick = () => filterFaction(key);
+            container.appendChild(btn);
+        }
+    }
+
+    // Фильтрация
+    function filterFaction(factionId) {
+        currentFilter = factionId;
+        
+        // Обновляем активный класс кнопок
+        document.querySelectorAll('.faction-btn').forEach(btn => btn.classList.remove('active'));
+        const activeBtn = Array.from(document.querySelectorAll('.faction-btn')).find(b => 
+            factionId === 'all' ? b.classList.contains('all') : b.innerText === FACTIONS[factionId]?.name.split(' ')[0]
+        );
+        if(activeBtn) activeBtn.classList.add('active');
+
+        renderCards();
+    }
+
+    // Рендер карт
+    function renderCards() {
+        const grid = document.getElementById('card-grid');
+        grid.innerHTML = '';
+
+        let allCards = [];
+        if (currentFilter === 'all') {
+            for (const key in FACTIONS) {
+                allCards = [...allCards, ...FACTIONS[key].cards];
+            }
+        } else {
+            allCards = FACTIONS[currentFilter].cards;
+        }
+
+        // Сортировка по влиянию
+        allCards.sort((a, b) => a.influence - b.influence);
+
+        allCards.forEach(card => {
+            const countInDeck = currentDeck.filter(c => c.id === card.id).length;
+            const maxAllowed = card.maxInDeck || 1;
+            const isMaxed = countInDeck >= maxAllowed;
+
+            const el = document.createElement('div');
+            el.className = `card rarity-${card.type}`;
+            if (isMaxed) el.style.opacity = '0.5';
+            
+            el.innerHTML = `
+                <div class="card-cost">${card.influence}</div>
+                <div class="card-name">${card.name}</div>
+                <div class="card-stats">
+                    <span>⚔️${card.power}</span>
+                    <span>❤️${card.health}</span>
+                    <span>🛡️${card.armor}</span>
+                </div>
+                ${countInDeck > 0 ? `<div class="card-count">x${countInDeck}</div>` : ''}
+            `;
+
+            el.onclick = () => toggleCard(card, maxAllowed);
+            grid.appendChild(el);
+        });
+    }
+
+    // Добавление/удаление карты
+    function toggleCard(card, maxAllowed) {
+        const index = currentDeck.findIndex(c => c.id === card.id);
+        
+        if (index !== -1) {
+            // Удаляем одну копию
+            currentDeck.splice(index, 1);
+            tg.HapticFeedback.impactOccurred('light');
+        } else {
+            // Добавляем, если не превышен лимит
+            if (currentDeck.length >= GAME_CONFIG.maxDeckSize) {
+                tg.showAlert(`Максимум карт в колоде: ${GAME_CONFIG.maxDeckSize}`);
+                return;
+            }
+            if (currentDeck.filter(c => c.id === card.id).length >= maxAllowed) {
+                tg.showAlert(`Максимум копий этой карты: ${maxAllowed}`);
+                return;
+            }
+            
+            const newInfluence = deckInfluence + card.influence;
+            if (newInfluence > GAME_CONFIG.maxInfluence) {
+                tg.showAlert(`Превышено влияние! Лимит: ${GAME_CONFIG.maxInfluence}`);
+                return;
+            }
+
+            currentDeck.push(card);
+            deckInfluence += card.influence;
+            tg.HapticFeedback.notificationOccurred('success');
+        }
+
+        updateStats();
+        renderCards(); // Перерисовка для обновления счетчиков
+    }
+
+    function updateStats() {
+        const countEl = document.getElementById('count-display');
+        const infEl = document.getElementById('influence-display');
+        
+        const currentCount = currentDeck.length;
+        const currentInf = currentDeck.reduce((sum, c) => sum + c.influence, 0);
+        deckInfluence = currentInf; // Синхронизация
+
+        countEl.innerText = `${currentCount}/${GAME_CONFIG.maxDeckSize}`;
+        countEl.className = currentCount === GAME_CONFIG.maxDeckSize ? 'count-ok' : 'count-error'; // Можно инвертировать логику цветов
+
+        infEl.innerText = `${currentInf}/${GAME_CONFIG.maxInfluence}`;
+        infEl.className = currentInf > GAME_CONFIG.maxInfluence ? 'count-error' : 'count-ok';
+    }
+
+    function clearDeck() {
+        if(confirm('Очистить всю колоду?')) {
+            currentDeck = [];
+            updateStats();
+            renderCards();
+            tg.HapticFeedback.notificationOccurred('warning');
+        }
+    }
+
+    function showSaveModal() {
+        if (currentDeck.length === 0) {
+            tg.showAlert('Колода пуста!');
+            return;
+        }
+        document.getElementById('save-modal').style.display = 'flex';
+        document.getElementById('deck-name-input').focus();
+    }
+
+    function closeSaveModal() {
+        document.getElementById('save-modal').style.display = 'none';
+    }
+
+    function saveDeck() {
+        const nameInput = document.getElementById('deck-name-input');
+        const name = nameInput.value.trim() || `Колода ${Date.now()}`;
+        
+        localStorage.setItem(`deck_${name}`, JSON.stringify(currentDeck));
+        tg.HapticFeedback.notificationOccurred('success');
+        tg.showAlert(`Колода "${name}" сохранена!`);
+        closeSaveModal();
+        nameInput.value = '';
+        
+        // Возврат в меню сохраненных колод
+        setTimeout(() => {
+            window.location.href = 'saved-decks.html';
+        }, 1000);
+    }
+
+    // Закрытие модального окна по клику вне
+    window.onclick = function(event) {
+        const modal = document.getElementById('save-modal');
+        if (event.target == modal) {
+            closeSaveModal();
+        }
+    }
+
+    init();
+</script>
+</body>
+</html>
