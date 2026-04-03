@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Онлайн Игра</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="config.js"></script>
+  <script src="https://cdn.socket.io/4.6.0/socket.io.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      color: white;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    h1 { font-size: 28px; margin-bottom: 10px; }
+    .subtitle { color: #888; margin-bottom: 30px; }
+    .menu-box {
+      background: rgba(255,255,255,0.05);
+      border-radius: 15px;
+      padding: 30px;
+      width: 100%;
+      max-width: 400px;
+      text-align: center;
+    }
+    .btn {
+      width: 100%;
+      padding: 18px;
+      margin: 10px 0;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-primary { background: linear-gradient(135deg, #3498db, #2980b9); color: white; }
+    .btn-success { background: linear-gradient(135deg, #2ecc71, #27ae60); color: white; }
+    .btn-warning { background: linear-gradient(135deg, #f39c12, #d68910); color: white; }
+    .btn-back { background: rgba(255,255,255,0.1); color: white; }
+    .btn:active { transform: scale(0.98); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .room-code {
+      background: rgba(52, 152, 219, 0.2);
+      border: 2px solid #3498db;
+      border-radius: 10px;
+      padding: 15px;
+      margin: 15px 0;
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: 5px;
+    }
+    .input-code {
+      width: 100%;
+      padding: 15px;
+      border: 2px solid rgba(255,255,255,0.2);
+      border-radius: 10px;
+      background: rgba(255,255,255,0.05);
+      color: white;
+      font-size: 20px;
+      text-align: center;
+      margin: 15px 0;
+      letter-spacing: 3px;
+    }
+    .status { margin: 15px 0; color: #888; }
+    .searching {
+      background: rgba(52, 152, 219, 0.1);
+      border: 2px solid #3498db;
+      border-radius: 10px;
+      padding: 20px;
+      margin: 15px 0;
+    }
+    .searching h3 { color: #3498db; margin-bottom: 10px; }
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid rgba(52, 152, 219, 0.3);
+      border-top: 4px solid #3498db;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 15px auto;
+    }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    .queue-info {
+      background: rgba(46, 204, 113, 0.1);
+      border: 1px solid #2ecc71;
+      border-radius: 8px;
+      padding: 10px;
+      margin: 10px 0;
+      font-size: 13px;
+    }
+    .toast {
+      position: fixed;
+      bottom: 50px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.8);
+      padding: 12px 25px;
+      border-radius: 25px;
+      font-size: 14px;
+      z-index: 2000;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .toast.show { opacity: 1; }
+  </style>
+</head>
+<body>
+  <div class="menu-box" id="mainMenu">
+    <h1>🌐 Онлайн Игра</h1>
+    <p class="subtitle">Играй с друзьями</p>
+    
+    <button class="btn btn-success" onclick="findMatch()">⚡ Быстрый матч</button>
+    <button class="btn btn-primary" onclick="createRoom()">👥 Игра с другом</button>
+    <button class="btn btn-warning" onclick="showJoinForm()">🚪 Войти по коду</button>
+    <button class="btn btn-back" onclick="window.location.href='index.html'">← Назад</button>
+  </div>
+  
+  <div class="menu-box" id="searchingMenu" style="display: none;">
+    <div class="searching">
+      <h3>🔍 Поиск соперника...</h3>
+      <div class="spinner"></div>
+      <div class="queue-info" id="queuePosition">Позиция в очереди: 1</div>
+      <p class="status">Ожидание игроков...</p>
+      <button class="btn btn-back" onclick="cancelSearch()">✕ Отмена</button>
+    </div>
+  </div>
+  
+  <div class="menu-box" id="createMenu" style="display: none;">
+    <h1>🏠 Комната создана</h1>
+    <p class="status">Отправь код другу:</p>
+    <div class="room-code" id="roomCode">----</div>
+    <button class="btn btn-success" onclick="inviteFriend()">📩 Пригласить друга</button>
+    <button class="btn btn-primary" onclick="copyCode()">📋 Скопировать код</button>
+    <button class="btn btn-back" onclick="waitForOpponent()">⏳ Ждать соперника</button>
+  </div>
+  
+  <div class="menu-box" id="joinMenu" style="display: none;">
+    <h1>🚪 Вход в комнату</h1>
+    <input type="text" class="input-code" id="joinCodeInput" placeholder="Код комнаты" maxlength="6">
+    <button class="btn btn-primary" onclick="joinRoom()">Войти</button>
+    <button class="btn btn-back" onclick="showMainMenu()">← Назад</button>
+  </div>
+  
+  <div class="menu-box" id="waitingMenu" style="display: none;">
+    <h1>⏳ Ожидание...</h1>
+    <p class="status">Ждём соперника</p>
+    <div class="room-code" id="waitRoomCode">----</div>
+    <button class="btn btn-back" onclick="leaveRoom()">✕ Отмена</button>
+  </div>
+  
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const tg = window.Telegram.WebApp;
+    tg.expand();
+    tg.ready();
+    
+    const SERVER_URL = 'http://193.148.59.127:3000';
+    const socket = io(SERVER_URL, { transports: ['websocket', 'polling'], reconnection: true });
+    
+    let roomId = null;
+    let isSearching = false;
+    
+    socket.on('connect', () => {
+      console.log('✅ Connected');
+      showToast('🟢 Подключено к серверу');
+    });
+    
+    socket.on('match-found', (data) => {
+      console.log('🎮 Match found!', data);
+      roomId = data.roomId;
+      localStorage.setItem('roomId', roomId);
+      showToast('🎮 Соперник найден!');
+      setTimeout(() => {
+        window.location.href = 'battle-online.html';
+      }, 1500);
+    });
+    
+    socket.on('matchmaking-started', (data) => {
+      console.log('⏳ In queue:', data);
+      document.getElementById('queuePosition').textContent = `Позиция в очереди: ${data.position}`;
+    });
+    
+    socket.on('room-created', (data) => {
+      roomId = data.roomId;
+      document.getElementById('roomCode').textContent = roomId;
+      document.getElementById('waitRoomCode').textContent = roomId;
+      document.getElementById('createMenu').style.display = 'none';
+      document.getElementById('waitingMenu').style.display = 'block';
+      showToast(`🏠 Комната: ${roomId}`);
+    });
+    
+    socket.on('game-start', () => {
+      showToast('🎮 Игра началась!');
+      localStorage.setItem('roomId', roomId);
+      setTimeout(() => { window.location.href = 'battle-online.html'; }, 1000);
+    });
+    
+    socket.on('error', (data) => { showToast('❌ ' + data.message); });
+    
+    // === БЫСТРЫЙ МАТЧ (МАТЧМЕЙКИНГ) ===
+    function findMatch() {
+      if (isSearching) return;
+      isSearching = true;
+      socket.emit('find-match');
+      document.getElementById('mainMenu').style.display = 'none';
+      document.getElementById('searchingMenu').style.display = 'block';
+      showToast('🔍 Поиск соперника...');
+    }
+    
+    function cancelSearch() {
+      isSearching = false;
+      socket.emit('cancel-matchmaking');
+      showMainMenu();
+      showToast('❌ Поиск отменён');
+    }
+    
+    // === ИГРА С ДРУГОМ ===
+    function createRoom() {
+      socket.emit('create-room', { gameState: {} });
+      document.getElementById('mainMenu').style.display = 'none';
+      document.getElementById('createMenu').style.display = 'block';
+    }
+    
+    function inviteFriend() {
+      const botUsername = tg.initDataUnsafe?.user?.username || 'CardBattleTestBot';
+      const inviteText = `🎮 Приглашаю тебя в Карточную Битву!\n\nСыграем онлайн?\n\nОткрой: https://t.me/${botUsername}?start=invite_${roomId}`;
+      
+      if (tg.switchInlineQuery) {
+        tg.switchInlineQuery(inviteText);
+      } else {
+        navigator.clipboard.writeText(inviteText);
+        showToast('📋 Приглашение скопировано! Отправь другу в Telegram');
+      }
+      
+      if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+    }
+    
+    function copyCode() {
+      navigator.clipboard.writeText(roomId);
+      showToast('📋 Код скопирован!');
+      if (tg.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+    }
+    
+    function showJoinForm() {
+      document.getElementById('mainMenu').style.display = 'none';
+      document.getElementById('joinMenu').style.display = 'block';
+    }
+    
+    function joinRoom() {
+      const code = document.getElementById('joinCodeInput').value.trim().toUpperCase();
+      if (!code) { showToast('⚠️ Введи код комнаты!'); return; }
+      socket.emit('join-room', code);
+    }
+    
+    function showMainMenu() {
+      document.getElementById('mainMenu').style.display = 'block';
+      document.getElementById('searchingMenu').style.display = 'none';
+      document.getElementById('createMenu').style.display = 'none';
+      document.getElementById('joinMenu').style.display = 'none';
+      document.getElementById('waitingMenu').style.display = 'none';
+      isSearching = false;
+    }
+    
+    function waitForOpponent() {
+      document.getElementById('createMenu').style.display = 'none';
+      document.getElementById('waitingMenu').style.display = 'block';
+    }
+    
+    function leaveRoom() {
+      socket.emit('leave-room', { roomId });
+      showMainMenu();
+    }
+    
+    function showToast(message) {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2500);
+    }
+  </script>
+</body>
+</html>
