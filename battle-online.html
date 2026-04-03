@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Онлайн Игра - Выбор колоды</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="config.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      color: white;
+      min-height: 100vh;
+      padding: 20px;
+      padding-bottom: 100px;
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    .header h1 { font-size: 28px; margin-bottom: 10px; }
+    .header p { color: #888; font-size: 14px; }
+    .faction-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 20px;
+      font-size: 13px;
+      margin-bottom: 20px;
+    }
+    .faction-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .decks-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .deck-item {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      padding: 15px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 12px;
+      border: 2px solid transparent;
+      cursor: pointer;
+    }
+    .deck-item:hover { border-color: #3498db; }
+    .deck-item.active { border-color: #2ecc71; background: rgba(46, 204, 113, 0.1); }
+    .deck-info { flex: 1; }
+    .deck-name { font-size: 16px; font-weight: 600; margin-bottom: 5px; }
+    .deck-stats { font-size: 12px; color: #888; }
+    .deck-stats span { margin-right: 15px; }
+    .bottom-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 15px 20px;
+      background: rgba(22, 33, 62, 0.95);
+      backdrop-filter: blur(10px);
+      border-top: 1px solid rgba(255,255,255,0.1);
+      display: flex;
+      gap: 10px;
+    }
+    .btn {
+      flex: 1;
+      padding: 15px;
+      border: none;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn:active { transform: scale(0.98); }
+    .btn-primary { background: linear-gradient(135deg, #2ecc71, #27ae60); color: white; }
+    .btn-back { background: rgba(255,255,255,0.1); color: white; }
+    .btn:disabled { background: #555; color: #888; cursor: not-allowed; }
+    .toast {
+      position: fixed;
+      bottom: 100px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.8);
+      padding: 12px 25px;
+      border-radius: 25px;
+      font-size: 14px;
+      z-index: 2000;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .toast.show { opacity: 1; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🌐 Онлайн Игра</h1>
+    <p>Выберите колоду для матча</p>
+  </div>
+  
+  <div class="faction-badge">
+    <div class="faction-dot" id="factionDot"></div>
+    <span id="factionName">Фракция</span>
+  </div>
+  
+  <div class="decks-list" id="decksList"></div>
+  
+  <div class="bottom-bar">
+    <button class="btn btn-back" onclick="goBack()">← Назад</button>
+    <button class="btn btn-primary" id="createBtn" onclick="createNewDeck()">➕ Создать новую для матча</button>
+    <button class="btn btn-primary" id="playBtn" onclick="goToLobby()" disabled>▶️ Далее</button>
+  </div>
+  
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const tg = window.Telegram.WebApp;
+    tg.expand();
+    tg.ready();
+    
+    let selectedFaction = localStorage.getItem('selectedFaction') || 'knights';
+    let factionData = null;
+    let savedDecks = [];
+    let selectedDeckIndex = -1;
+    
+    document.addEventListener('DOMContentLoaded', () => {
+      initFaction();
+      loadDecks();
+    });
+    
+    function initFaction() {
+      factionData = FACTIONS[selectedFaction];
+      document.getElementById('factionName').textContent = factionData.name;
+      document.getElementById('factionDot').style.background = factionData.color;
+    }
+    
+    function loadDecks() {
+      const deckData = localStorage.getItem(`deck_${selectedFaction}`);
+      const leaderData = localStorage.getItem('playerLeader');
+      
+      if (deckData) {
+        const cards = JSON.parse(deckData);
+        const influence = cards.reduce((sum, id) => {
+          const card = factionData.cards.find(c => c.id === id);
+          return sum + (card?.influence || 0);
+        }, 0);
+        
+        savedDecks = [{
+          id: 'current',
+          name: 'Текущая колода',
+          cards: cards,
+          influence: influence,
+          leader: leaderData || '0'
+        }];
+        
+        // Загрузка дополнительных колод
+        for (let i = 1; i <= 5; i++) {
+          const extraDeck = localStorage.getItem(`deck_${selectedFaction}_slot_${i}`);
+          if (extraDeck) {
+            const cards = JSON.parse(extraDeck);
+            const influence = cards.reduce((sum, id) => {
+              const card = factionData.cards.find(c => c.id === id);
+              return sum + (card?.influence || 0);
+            }, 0);
+            const leader = localStorage.getItem(`deck_${selectedFaction}_slot_${i}_leader`) || '0';
+            
+            savedDecks.push({
+              id: `slot_${i}`,
+              name: `Колода ${i}`,
+              cards: cards,
+              influence: influence,
+              leader: leader
+            });
+          }
+        }
+        
+        renderDecks();
+      } else {
+        document.getElementById('decksList').innerHTML = '<div style="text-align:center;padding:40px;color:#888;">Нет сохранённых колод<br>Создайте новую!</div>';
+      }
+    }
+    
+    function renderDecks() {
+      const container = document.getElementById('decksList');
+      container.innerHTML = savedDecks.map((deck, idx) => `
+        <div class="deck-item ${selectedDeckIndex===idx?'active':''}" onclick="selectDeck(${idx})">
+          <div class="deck-info">
+            <div class="deck-name">${deck.name}</div>
+            <div class="deck-stats">
+              <span>🃏 ${deck.cards.length}/25 карт</span>
+              <span>💫 ${deck.influence}/170 влияния</span>
+            </div>
+          </div>
+          ${selectedDeckIndex===idx?'✅':''}
+        </div>
+      `).join('');
+    }
+    
+    function selectDeck(idx) {
+      selectedDeckIndex = idx;
+      renderDecks();
+      document.getElementById('playBtn').disabled = false;
+      if (tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light');
+    }
+    
+    function createNewDeck() {
+      localStorage.removeItem(`deck_${selectedFaction}`);
+      localStorage.removeItem('playerLeader');
+      window.location.href = 'deckbuilder.html';
+    }
+    
+    function goToLobby() {
+      if (selectedDeckIndex === -1) {
+        showToast('Выберите колоду!');
+        return;
+      }
+      
+      const deck = savedDecks[selectedDeckIndex];
+      localStorage.setItem('selectedDeck', JSON.stringify(deck));
+      localStorage.setItem('selectedDeckIndex', selectedDeckIndex.toString());
+      
+      window.location.href = 'multiplayer.html';
+    }
+    
+    function goBack() {
+      window.location.href = 'index.html';
+    }
+    
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2000);
+    }
+  </script>
+</body>
+</html>
