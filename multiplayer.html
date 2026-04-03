@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Онлайн Бой</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://cdn.socket.io/4.6.0/socket.io.min.js"></script>
+    <style>
+        body { margin: 0; padding: 0; background: #1a1a1a; color: #fff; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; overflow: hidden; }
+        .container { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; padding: 20px; text-align: center; }
+        
+        h1 { margin-bottom: 30px; font-size: 24px; }
+        
+        .status-box {
+            background: rgba(255,255,255,0.1);
+            padding: 20px;
+            border-radius: 12px;
+            width: 100%;
+            max-width: 320px;
+            margin-bottom: 20px;
+            min-height: 150px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .spinner {
+            width: 40px; height: 40px;
+            border: 4px solid rgba(255,255,255,0.3);
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 15px;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        .btn {
+            width: 100%; max-width: 320px;
+            padding: 15px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-bottom: 10px;
+            transition: transform 0.1s;
+            color: white;
+        }
+        .btn:active { transform: scale(0.98); }
+        .btn-primary { background: linear-gradient(135deg, #3498db, #2980b9); }
+        .btn-success { background: linear-gradient(135deg, #2ecc71, #27ae60); }
+        .btn-danger { background: linear-gradient(135deg, #e74c3c, #c0392b); }
+        .btn-warning { background: linear-gradient(135deg, #f1c40f, #f39c12); color: #000; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; filter: grayscale(1); }
+
+        .hidden { display: none !important; }
+        
+        .timer { font-size: 32px; font-weight: bold; color: #f1c40f; margin: 10px 0; }
+        .player-status { font-size: 14px; margin-top: 5px; color: #aaa; }
+        .ready-badge { color: #2ecc71; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🌐 Онлайн Бой</h1>
+
+    <!-- ЭКРАН МЕНЮ -->
+    <div id="menu-screen">
+        <button class="btn btn-primary" onclick="startSearch()">🔍 Подбор игроков</button>
+        <button class="btn btn-success" onclick="inviteFriend()">📩 Пригласить друга</button>
+        <button class="btn btn-danger" onclick="window.location.href='index.html'">❌ Отмена</button>
+    </div>
+
+    <!-- ЭКРАН ПОИСКА -->
+    <div id="search-screen" class="hidden">
+        <div class="status-box">
+            <div class="spinner"></div>
+            <div>Поиск соперника...</div>
+            <div class="player-status" id="search-status">Ожидание ответа сервера</div>
+        </div>
+        <button class="btn btn-danger" onclick="cancelSearch()">Отменить</button>
+    </div>
+
+    <!-- ЭКРАН ЛОББИ (ОЖИДАНИЕ ГОТОВНОСТИ) -->
+    <div id="lobby-screen" class="hidden">
+        <div class="status-box">
+            <div style="font-size: 18px; margin-bottom: 10px;">Соперник найден!</div>
+            <div id="opponent-name" style="color: #3498db; font-weight: bold;">Игрок 2</div>
+            <div class="player-status" id="lobby-status">Ожидание готовности...</div>
+        </div>
+        
+        <button id="btn-ready" class="btn btn-success" onclick="toggleReady()">✅ Я готов</button>
+        <button id="btn-not-ready" class="btn btn-warning hidden" onclick="toggleReady()">⛔ Не готов</button>
+        
+        <div id="countdown-container" class="hidden">
+            <div class="timer" id="timer">10</div>
+            <div>До начала боя</div>
+        </div>
+    </div>
+
+    <!-- ЭКРАН ОШИБКИ -->
+    <div id="error-screen" class="hidden">
+        <div class="status-box">
+            <div style="font-size: 40px;">⚠️</div>
+            <div id="error-msg">Произошла ошибка</div>
+        </div>
+        <button class="btn btn-primary" onclick="location.reload()">Попробовать снова</button>
+    </div>
+</div>
+
+<script>
+    const tg = window.Telegram.WebApp;
+    tg.expand();
+    tg.ready();
+
+    const SERVER_IP = '193.148.59.127';
+    const SERVER_PORT = '3000';
+    const SOCKET_URL = `http://${SERVER_IP}:${SERVER_PORT}`;
+
+    let socket;
+    let roomId = null;
+    let isReady = false;
+    let countdownInterval = null;
+
+    const user = tg.initDataUnsafe?.user;
+    const playerName = user ? `${user.first_name} ${user.last_name || ''}` : 'Аноним';
+    const userId = user ? user.id : 'guest_' + Math.random();
+
+    // Элементы UI
+    const screens = {
+        menu: document.getElementById('menu-screen'),
+        search: document.getElementById('search-screen'),
+        lobby: document.getElementById('lobby-screen'),
+        error: document.getElementById('error-screen')
+    };
+
+    function showScreen(name) {
+        Object.values(screens).forEach(el => el.classList.add('hidden'));
+        screens[name].classList.remove('hidden');
+    }
+
+    function initSocket() {
+        if (socket) socket.disconnect();
+        
+        socket = io(SOCKET_URL, {
+            transports: ['websocket', 'polling'],
+            reconnection: true,
+            reconnectionAttempts: 5
+        });
+
+        socket.on('connect', () => {
+            console.log('Connected to server:', socket.id);
+            document.getElementById('search-status').innerText = 'Подключено к серверу';
+        });
+
+        socket.on('disconnect', () => {
+            showError('Соединение с сервером потеряно');
+        });
+
+        socket.on('connect_error', (err) => {
+            console.error('Connection error:', err);
+            showError('Не удалось подключиться к серверу. Проверьте IP и порт.');
+        });
+
+        // Обработка событий лобби
+        socket.on('room-found', (data) => {
+            roomId = data.roomId;
+            showScreen('lobby');
+            document.getElementById('opponent-name').innerText = data.opponent || 'Соперник';
+            updateLobbyStatus(false, false);
+        });
+
+        socket.on('player-ready', (data) => {
+            updateLobbyStatus(data.p1Ready, data.p2Ready);
+        });
+
+        socket.on('countdown-start', (data) => {
+            startCountdown(data.seconds);
+        });
+
+        socket.on('game-start', (data) => {
+            clearInterval(countdownInterval);
+            // Сохраняем данные матча и переходим в игру
+            localStorage.setItem('matchData', JSON.stringify({
+                roomId: roomId,
+                opponent: data.opponent,
+                mySide: data.side // 'p1' или 'p2'
+            }));
+            // Переход на страницу игры (нужно создать game-online.html или использовать game.html с флагом)
+            window.location.href = 'game.html?mode=online&room=' + roomId;
+        });
+
+        socket.on('error', (data) => {
+            showError(data.message);
+        });
+        
+        socket.on('player-left', () => {
+            showError('Соперник покинул лобби');
+        });
+    }
+
+    function startSearch() {
+        showScreen('search');
+        initSocket();
+        socket.emit('find-match', {
+            userId: userId,
+            name: playerName
+        });
+    }
+
+    function cancelSearch() {
+        if (socket) socket.emit('cancel-search', { userId });
+        showScreen('menu');
+    }
+
+    function inviteFriend() {
+        // Формируем ссылку-приглашение
+        // В реальном приложении тут нужна глубокая ссылка (deep link) для бота
+        const inviteLink = `https://t.me/share/url?url=${encodeURIComponent('Привет! Сыграем в карты?')}&text=Я вызываю тебя на дуэль!`;
+        
+        tg.openTelegramLink(inviteLink);
+        
+        // После отправки приглашения можно автоматически начать поиск
+        setTimeout(() => {
+            if(confirm("Приглашение отправлено! Начать поиск соперника?")) {
+                startSearch();
+            }
+        }, 1000);
+    }
+
+    function toggleReady() {
+        isReady = !isReady;
+        socket.emit('set-ready', {
+            roomId: roomId,
+            userId: userId,
+            ready: isReady
+        });
+        
+        const btnReady = document.getElementById('btn-ready');
+        const btnNotReady = document.getElementById('btn-not-ready');
+        
+        if (isReady) {
+            btnReady.classList.add('hidden');
+            btnNotReady.classList.remove('hidden');
+            document.getElementById('lobby-status').innerHTML = '<span class="ready-badge">Вы готовы</span>';
+        } else {
+            btnReady.classList.remove('hidden');
+            btnNotReady.classList.add('hidden');
+            document.getElementById('lobby-status').innerText = 'Ожидание готовности...';
+            // Если отменили готовность во время отсчета, сервер должен это обработать
+        }
+    }
+
+    function updateLobbyStatus(p1, p2) {
+        const statusEl = document.getElementById('lobby-status');
+        if (p1 && p2) {
+            statusEl.innerHTML = '<span class="ready-badge">Оба игрока готовы!</span>';
+        } else {
+            statusEl.innerText = 'Ожидание готовности соперника...';
+        }
+    }
+
+    function startCountdown(seconds) {
+        const container = document.getElementById('countdown-container');
+        const timerEl = document.getElementById('timer');
+        container.classList.remove('hidden');
+        
+        let timeLeft = seconds;
+        timerEl.innerText = timeLeft;
+
+        countdownInterval = setInterval(() => {
+            timeLeft--;
+            timerEl.innerText = timeLeft;
+            if (timeLeft <= 0) {
+                clearInterval(countdownInterval);
+            }
+        }, 1000);
+    }
+
+    function showError(msg) {
+        showScreen('error');
+        document.getElementById('error-msg').innerText = msg;
+        if (socket) socket.disconnect();
+    }
+
+    // Инициализация при загрузке
+    // Если мы вернулись из игры или открыли ссылку-приглашение
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('invite')) {
+        // Логика обработки приглашения (можно сразу искать матч)
+        startSearch();
+    }
+</script>
+</body>
+</html>
