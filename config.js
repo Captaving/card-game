@@ -1,0 +1,298 @@
+// === КОНФИГУРАЦИЯ ИГРЫ ===
+const GAME_CONFIG = {
+  maxDeckSize: 25,
+  maxInfluence: 150,
+  maxCardsPerRow: 4,
+  rounds: 3,
+  startingHand: 10,
+  cardsPerRound: 1,
+  maxMulligan: 3
+};
+
+// === ФРАКЦИИ И КАРТЫ ===
+const FACTIONS = {};
+
+// ============================================
+// ФРАКЦИЯ 1: РЫЦАРИ ЦВЕТКА ЛИЛИИ (45 карт)
+// ============================================
+FACTIONS.knights = {
+  id: 'knights',
+  name: 'Рыцари Цветка Лилии',
+  color: '#3498db',
+  cards: [
+    // Белые карты (1-3)
+    { id: 'knights_white_01', name: 'Пехотинец', type: 'white', row: 'left', power: 2, armor: 1, health: 2, influence: 2, maxInDeck: 3, effect: null },
+    { id: 'knights_white_02', name: 'Пехотинец', type: 'white', row: 'left', power: 2, armor: 1, health: 2, influence: 2, maxInDeck: 3, effect: null },
+    { id: 'knights_white_03', name: 'Пехотинец', type: 'white', row: 'left', power: 2, armor: 1, health: 2, influence: 2, maxInDeck: 3, effect: null },
+    
+    // Серые карты (4-12)
+    { id: 'knights_gray_01', name: 'Рыцарь Ордена', type: 'gray', row: 'left', power: 5, armor: 4, health: 4, influence: 4, maxInDeck: 2, effect: null },
+    { id: 'knights_gray_02', name: 'Рыцарь Ордена', type: 'gray', row: 'left', power: 5, armor: 2, health: 4, influence: 4, maxInDeck: 2, effect: null },
+    { id: 'knights_gray_03', name: 'Знаменосец', type: 'gray', row: 'left', power: 3, armor: 2, health: 6, influence: 4, maxInDeck: 2, effect: null },
+    { id: 'knights_gray_04', name: 'Знаменосец', type: 'gray', row: 'left', power: 3, armor: 2, health: 6, influence: 4, maxInDeck: 2, effect: null },
+    { id: 'knights_gray_05', name: 'Требушет', type: 'gray', row: 'right', power: 3, armor: 3, health: 3, influence: 4, maxInDeck: 3, effect: null },
+    { id: 'knights_gray_06', name: 'Требушет', type: 'gray', row: 'right', power: 3, armor: 3, health: 3, influence: 4, maxInDeck: 3, effect: null },
+    { id: 'knights_gray_07', name: 'Требушет', type: 'gray', row: 'right', power: 3, armor: 3, health: 3, influence: 4, maxInDeck: 3, effect: null },
+    { id: 'knights_gray_08', name: 'Арбалетчик', type: 'gray', row: 'right', power: 4, armor: 1, health: 3, influence: 5, maxInDeck: 3, effect: { type: 'onPlay', action: 'damage', value: 1, target: 'any_enemy', description: 'При размещении наносят 1 урон Любая карте противника' } },
+    { id: 'knights_gray_09', name: 'Арбалетчик', type: 'gray', row: 'right', power: 4, armor: 1, health: 3, influence: 5, maxInDeck: 3, effect: { type: 'onPlay', action: 'damage', value: 1, target: 'any_enemy', description: 'При размещении наносят 1 урон Любая карте противника' } },
+    { id: 'knights_gray_10', name: 'Арбалетчик', type: 'gray', row: 'right', power: 4, armor: 1, health: 3, influence: 5, maxInDeck: 3, effect: { type: 'onPlay', action: 'damage', value: 1, target: 'any_enemy', description: 'При размещении наносят 1 урон Любая карте противника' } },
+    
+    // Фиолетовые карты (13-25)
+    { id: 'knights_purple_01', name: 'Воин Света', type: 'purple', row: 'left', power: 1, armor: 1, health: 6, influence: 5, maxInDeck: 2, effect: { type: 'onPlay', action: 'buff', value: 2, stat: 'power', target: 'own_unit_selectable', description: 'При размещении выберите свою карту, она получит +2 к Силе' } },
+    { id: 'knights_purple_02', name: 'Воин Света', type: 'purple', row: 'left', power: 1, armor: 1, health: 6, influence: 5, maxInDeck: 2, effect: { type: 'onPlay', action: 'buff', value: 2, stat: 'power', target: 'own_unit_selectable', description: 'При размещении выберите свою карту, она получит +2 к Силе' } },
+    { id: 'knights_purple_03', name: 'Разведчик', type: 'purple', row: 'right', power: 1, armor: 0, health: 1, influence: 6, maxInDeck: 2, effect: { type: 'onPlay', action: 'reveal', value: 1, target: 'enemy_hand', description: 'При размещении показывает 1 карту в руке противника' } },
+    { id: 'knights_purple_04', name: 'Разведчик', type: 'purple', row: 'right', power: 1, armor: 0, health: 1, influence: 6, maxInDeck: 2, effect: { type: 'onPlay', action: 'reveal', value: 1, target: 'enemy_hand', description: 'При размещении показывает 1 карту в руке противника' } },
+    { id: 'knights_purple_05', name: 'Братья Стали', type: 'purple', row: 'right', power: 3, armor: 2, health: 4, influence: 4, maxInDeck: 2, effect: { type: 'onPlay', action: 'synergy', value: 2, stat: 'power', target: 'adjacent_same_name', description: 'При размещении рядом с картой Братья Стали увеличивает силу этих двух карт на +2' } },
+    { id: 'knights_purple_06', name: 'Братья Стали', type: 'purple', row: 'right', power: 3, armor: 2, health: 4, influence: 4, maxInDeck: 2, effect: { type: 'onPlay', action: 'synergy', value: 2, stat: 'power', target: 'adjacent_same_name', description: 'При размещении рядом с картой Братья Стали увеличивает силу этих двух карт на +2' } },
+    { id: 'knights_purple_07', name: 'Падший рыцарь', type: 'purple', row: 'any', power: 2, armor: 0, health: 0, influence: 8, maxInDeck: 1, effect: { type: 'onPlay', action: 'steal', target: 'any_enemy_field', description: 'при размещении заберите с поля любую карту противника в свою руку' } },
+    { id: 'knights_purple_08', name: 'Опытный лучник', type: 'purple', row: 'right', power: 5, armor: 1, health: 3, influence: 6, maxInDeck: 2, effect: { type: 'onPlay', action: 'damage', value: 1, target: 'any_enemy_selectable', description: 'При размещении выберите карту противника и нанесите ей 1 урон' } },
+    { id: 'knights_purple_09', name: 'Опытный лучник', type: 'purple', row: 'right', power: 5, armor: 1, health: 3, influence: 6, maxInDeck: 2, effect: { type: 'onPlay', action: 'damage', value: 1, target: 'any_enemy_selectable', description: 'При размещении выберите карту противника и нанесите ей 1 урон' } },
+    { id: 'knights_purple_10', name: 'Рыцарь Эливан', type: 'purple', row: 'any', power: 7, armor: 3, health: 4, influence: 8, maxInDeck: 1, effect: null },
+    { id: 'knights_purple_11', name: 'Сир Грегори Траттен', type: 'purple', row: 'left', power: 2, armor: 7, health: 5, influence: 8, maxInDeck: 1, effect: null },
+    { id: 'knights_purple_12', name: 'Карлос Аугуст', type: 'purple', row: 'any', power: 10, armor: 5, health: 4, influence: 10, maxInDeck: 1, effect: { type: 'onPlay', action: 'damage', value: 10, target: 'any_enemy_selectable', oncePerGame: true, description: 'Может нанести урон равный его силе Любая карте противника 1 раз за игру' } },
+    
+    // Особые карты (26-35)
+    { id: 'knights_special_01', name: 'Яма с кольями', type: 'special', row: 'any', power: 0, armor: 0, health: 0, influence: 4, maxInDeck: 3, effect: { type: 'onPlay', action: 'trap', value: 3, trigger: 'enemy_buff', description: 'При размещении выберите карту противника, если она получит увеличение силы, нанесите ей 3 урона' }, discardAfterUse: true },
+    { id: 'knights_special_02', name: 'Яма с кольями', type: 'special', row: 'any', power: 0, armor: 0, health: 0, influence: 4, maxInDeck: 3, effect: { type: 'onPlay', action: 'trap', value: 3, trigger: 'enemy_buff', description: 'При размещении выберите карту противника, если она получит увеличение силы, нанесите ей 3 урона' }, discardAfterUse: true },
+    { id: 'knights_special_03', name: 'Яма с кольями', type: 'special', row: 'any', power: 0, armor: 0, health: 0, influence: 4, maxInDeck: 3, effect: { type: 'onPlay', action: 'trap', value: 3, trigger: 'enemy_buff', description: 'При размещении выберите карту противника, если она получит увеличение силы, нанесите ей 3 урона' }, discardAfterUse: true },
+    { id: 'knights_special_04', name: 'Чучело', type: 'special', row: 'any', power: 0, armor: 0, health: 0, influence: 5, maxInDeck: 3, effect: { type: 'onPlay', action: 'returnToHand', target: 'own_unit_selectable', description: 'При размещении верните любую карту со своего поля себе в руку' }, discardAfterUse: true },
+    { id: 'knights_special_05', name: 'Чучело', type: 'special', row: 'any', power: 0, armor: 0, health: 0, influence: 5, maxInDeck: 3, effect: { type: 'onPlay', action: 'returnToHand', target: 'own_unit_selectable', description: 'При размещении верните любую карту со своего поля себе в руку' }, discardAfterUse: true },
+    { id: 'knights_special_06', name: 'Чучело', type: 'special', row: 'any', power: 0, armor: 0, health: 0, influence: 5, maxInDeck: 3, effect: { type: 'onPlay', action: 'returnToHand', target: 'own_unit_selectable', description: 'При размещении верните любую карту со своего поля себе в руку' }, discardAfterUse: true },
+    { id: 'knights_special_07', name: 'Бомба', type: 'special', row: 'any', power: 0, armor: 0, health: 0, influence: 5, maxInDeck: 4, effect: { type: 'onPlay', action: 'damage', value: 4, target: 'enemy_score', description: 'При размещении нанесите противнику 4 урона' }, discardAfterUse: true },
+    { id: 'knights_special_08', name: 'Бомба', type: 'special', row: 'any', power: 0, armor: 0, health: 0, influence: 5, maxInDeck: 4, effect: { type: 'onPlay', action: 'damage', value: 4, target: 'enemy_score', description: 'При размещении нанесите противнику 4 урона' }, discardAfterUse: true },
+    { id: 'knights_special_09', name: 'Бомба', type: 'special', row: 'any', power: 0, armor: 0, health: 0, influence: 5, maxInDeck: 4, effect: { type: 'onPlay', action: 'damage', value: 4, target: 'enemy_score', description: 'При размещении нанесите противнику 4 урона' }, discardAfterUse: true },
+    { id: 'knights_special_10', name: 'Бомба', type: 'special', row: 'any', power: 0, armor: 0, health: 0, influence: 5, maxInDeck: 4, effect: { type: 'onPlay', action: 'damage', value: 4, target: 'enemy_score', description: 'При размещении нанесите противнику 4 урона' }, discardAfterUse: true },
+    
+    // Золотые карты (36-45)
+    { id: 'knights_gold_01', name: 'Стена щитов', type: 'gold', row: 'any', power: 0, armor: 0, health: 0, influence: 10, maxInDeck: 1, effect: { type: 'onPlay', action: 'buff', value: 4, stat: 'armor', target: 'row', description: 'При размещении дает всем картам в ряду +4 к броне' }, discardAfterUse: true },
+    { id: 'knights_gold_02', name: 'Лекарь Салема', type: 'gold', row: 'any', power: 5, armor: 0, health: 5, influence: 12, maxInDeck: 1, effect: { type: 'onPlay', action: 'revive', count: 1, target: 'discard', description: 'При размещении возвращает на поле 1 карту из отбоя' } },
+    { id: 'knights_gold_03', name: 'Архиепископ Сентор', type: 'gold', row: 'any', power: 1, armor: 0, health: 5, influence: 12, maxInDeck: 1, effect: { type: 'passive', action: 'special_play', oncePerGame: true, description: 'Один раз за игру может применить карту "Покаяние господня" если она есть в колоде' } },
+    { id: 'knights_gold_04', name: 'Отто Фон Гаус', type: 'gold', row: 'any', power: 15, armor: 5, health: 10, influence: 12, maxInDeck: 1, effect: null },
+    { id: 'knights_gold_05', name: 'Рыцарь Маркус Таристан', type: 'gold', row: 'any', power: 8, armor: 5, health: 6, influence: 12, maxInDeck: 1, effect: { type: 'onPlay', action: 'damage', value: 8, target: 'any_enemy_selectable', description: 'При размещении нанесите 8 урона Любая на выбор карте противника на поле' } },
+    { id: 'knights_gold_06', name: 'Королевский Шпион', type: 'gold', row: 'enemy_field', power: 5, armor: 3, health: 5, influence: 12, maxInDeck: 1, effect: { type: 'onPlay', action: 'steal_deck', count: 1, description: 'При размещении возьмите верхнюю карту из колоды противника и сыграйте ее' } },
+    { id: 'knights_gold_07', name: 'Анна Штраус', type: 'gold', row: 'any', power: 3, armor: 3, health: 5, influence: 12, maxInDeck: 1, effect: { type: 'onPlay', action: 'buff', value: 7, stat: 'health', target: 'own_unit_selectable', description: 'При размещении выберите карту со своего поля и дайте ей +7 к здоровью' } },
+    { id: 'knights_gold_08', name: 'Король Аугуст Роззен', type: 'gold', row: 'any', power: 6, armor: 6, health: 8, influence: 20, maxInDeck: 1, effect: { type: 'onPlay', action: 'double_trigger', target: 'row', description: 'При размещении я ряду, карты у которых есть эффект размещения повторно активируют свои умения' } },
+    { id: 'knights_special_11', name: 'Покаяние Господня', type: 'special', row: 'any', power: 0, armor: 0, health: 0, influence: 10, maxInDeck: 1, effect: { type: 'onPlay', action: 'buff', target: 'archbishop', power: 10, armor: 3, description: 'При использовании данной карты, карта Архиепископ Сентор получает 10 силы и 3 брони' }, discardAfterUse: true },
+    { id: 'knights_special_12', name: 'Королевский рог', type: 'special', row: 'any', power: 0, armor: 0, health: 0, influence: 12, maxInDeck: 1, effect: { type: 'onPlay', action: 'buff', value: 2, stat: 'power', target: 'all', description: 'Дает всем картам на поле +2 к Силе' }, discardAfterUse: true }
+  ],
+  leaders: [
+    { id: 'knights_leader_1', name: 'Король Аугуст Роззен Смелый', ability: { type: 'damage', value: 3, description: 'Нанесите 3 урона карте' } },
+    { id: 'knights_leader_2', name: 'Король Аугуст Роззен Отважный', ability: { type: 'counter', description: 'Отменяет умение лидера фракции противника' } },
+    { id: 'knights_leader_3', name: 'Король Аугуст Роззен Победитель', ability: { type: 'heal', description: 'Востановите здоровье своей карты' } }
+  ]
+};
+// ============================================
+// ФРАКЦИЯ 2: ПРИСЛУЖНИКИ ЧЕРНОЙ ЛИЛИИ (45 карт)
+// ============================================
+FACTIONS.cultists = {
+  id: 'cultists',
+  name: 'Прислужники Черной Лилии',
+  color: '#555555',
+  cards: [
+    // Белые карты (1-3, 13-16, 21-24)
+    { id: 'cultists_white_01', name: 'Демон', type: 'white', row: 'right', power: 4, armor: 2, health: 4, influence: 4, maxInDeck: 3, effect: null },
+    { id: 'cultists_white_02', name: 'Демон', type: 'white', row: 'right', power: 4, armor: 2, health: 4, influence: 4, maxInDeck: 3, effect: null },
+    { id: 'cultists_white_03', name: 'Демон', type: 'white', row: 'right', power: 4, armor: 2, health: 4, influence: 4, maxInDeck: 3, effect: null },
+    { id: 'cultists_white_04', name: 'Падальщик', type: 'white', row: 'right', power: 2, armor: 1, health: 2, influence: 2, maxInDeck: 4, effect: { type: 'onDeath', action: 'buff', value: 1, stat: 'power', target: 'any_unit', description: 'При уничтожении дает +1 силу любому отряду на поле' } },
+    { id: 'cultists_white_05', name: 'Падальщик', type: 'white', row: 'right', power: 2, armor: 1, health: 2, influence: 2, maxInDeck: 4, effect: { type: 'onDeath', action: 'buff', value: 1, stat: 'power', target: 'any_unit', description: 'При уничтожении дает +1 силу любому отряду на поле' } },
+    { id: 'cultists_white_06', name: 'Падальщик', type: 'white', row: 'right', power: 2, armor: 1, health: 2, influence: 2, maxInDeck: 4, effect: { type: 'onDeath', action: 'buff', value: 1, stat: 'power', target: 'any_unit', description: 'При уничтожении дает +1 силу любому отряду на поле' } },
+    { id: 'cultists_white_07', name: 'Падальщик', type: 'white', row: 'right', power: 2, armor: 1, health: 2, influence: 2, maxInDeck: 4, effect: { type: 'onDeath', action: 'buff', value: 1, stat: 'power', target: 'any_unit', description: 'При уничтожении дает +1 силу любому отряду на поле' } },
+    { id: 'cultists_white_08', name: 'Призрак', type: 'white', row: 'any', power: 1, armor: 1, health: 1, influence: 2, maxInDeck: 4, effect: { type: 'onDeath', action: 'summon_enemy', card: 'cultists_white_08', description: 'После уничтожения карты, призрак появляется в любом ряду противника' } },
+    { id: 'cultists_white_09', name: 'Призрак', type: 'white', row: 'any', power: 1, armor: 1, health: 1, influence: 2, maxInDeck: 4, effect: { type: 'onDeath', action: 'summon_enemy', card: 'cultists_white_08', description: 'После уничтожения карты, призрак появляется в любом ряду противника' } },
+    { id: 'cultists_white_10', name: 'Призрак', type: 'white', row: 'any', power: 1, armor: 1, health: 1, influence: 2, maxInDeck: 4, effect: { type: 'onDeath', action: 'summon_enemy', card: 'cultists_white_08', description: 'После уничтожения карты, призрак появляется в любом ряду противника' } },
+    { id: 'cultists_white_11', name: 'Призрак', type: 'white', row: 'any', power: 1, armor: 1, health: 1, influence: 2, maxInDeck: 4, effect: { type: 'onDeath', action: 'summon_enemy', card: 'cultists_white_08', description: 'После уничтожения карты, призрак появляется в любом ряду противника' } },
+    
+    // Серые карты (4-9, 19-20, 37-38)
+    { id: 'cultists_gray_01', name: 'Проклятый', type: 'gray', row: 'left', power: 5, armor: 1, health: 3, influence: 6, maxInDeck: 4, effect: { type: 'passive', action: 'synergy', value: 2, stat: 'power', target: 'same_name_row', description: 'При размещении в одном ряду с Проклятыми каждый получает +2 к силе' } },
+    { id: 'cultists_gray_02', name: 'Проклятый', type: 'gray', row: 'left', power: 5, armor: 1, health: 3, influence: 6, maxInDeck: 4, effect: { type: 'passive', action: 'synergy', value: 2, stat: 'power', target: 'same_name_row', description: 'При размещении в одном ряду с Проклятыми каждый получает +2 к силе' } },
+    { id: 'cultists_gray_03', name: 'Проклятый', type: 'gray', row: 'left', power: 5, armor: 1, health: 3, influence: 6, maxInDeck: 4, effect: { type: 'passive', action: 'synergy', value: 2, stat: 'power', target: 'same_name_row', description: 'При размещении в одном ряду с Проклятыми каждый получает +2 к силе' } },
+    { id: 'cultists_gray_04', name: 'Проклятый', type: 'gray', row: 'left', power: 5, armor: 1, health: 3, influence: 6, maxInDeck: 4, effect: { type: 'passive', action: 'synergy', value: 2, stat: 'power', target: 'same_name_row', description: 'При размещении в одном ряду с Проклятыми каждый получает +2 к силе' } },
+    { id: 'cultists_gray_05', name: 'Голем', type: 'gray', row: 'right', power: 10, armor: 5, health: 5, influence: 6, maxInDeck: 2, effect: null },
+    { id: 'cultists_gray_06', name: 'Голем', type: 'gray', row: 'right', power: 10, armor: 5, health: 5, influence: 6, maxInDeck: 2, effect: null },
+    { id: 'cultists_gray_07', name: 'Культист', type: 'gray', row: 'right', power: 5, armor: 1, health: 2, influence: 5, maxInDeck: 2, effect: { type: 'onPlay', action: 'summon', card: 'cultists_white_08', count: 1, description: 'При размещении призовите Призрака' } },
+    { id: 'cultists_gray_08', name: 'Культист', type: 'gray', row: 'right', power: 5, armor: 1, health: 2, influence: 5, maxInDeck: 2, effect: { type: 'onPlay', action: 'summon', card: 'cultists_white_08', count: 1, description: 'При размещении призовите Призрака' } },
+    { id: 'cultists_gray_09', name: 'Дети Леса', type: 'gray', row: 'any', power: 4, armor: 1, health: 4, influence: 6, maxInDeck: 2, effect: { type: 'passive', action: 'synergy', value: 4, stat: 'power', target: 'same_name_row', description: 'Если в ряду 2 Дитя Леса, то каждый из них получает +4 силы' } },
+    { id: 'cultists_gray_10', name: 'Дети Леса', type: 'gray', row: 'any', power: 4, armor: 1, health: 4, influence: 6, maxInDeck: 2, effect: { type: 'passive', action: 'synergy', value: 4, stat: 'power', target: 'same_name_row', description: 'Если в ряду 2 Дитя Леса, то каждый из них получает +4 силы' } },
+    
+    // Фиолетовые карты (10-12, 17-18, 25-26, 37-38)
+    { id: 'cultists_purple_01', name: 'Командир Армии Мертвых', type: 'purple', row: 'any', power: 5, armor: 2, health: 5, influence: 8, maxInDeck: 1, effect: { type: 'onPlay', action: 'summon', card: 'cultists_white_01', count: 1, description: 'При размещении Призывает 1 Демона из колоды' } },
+    { id: 'cultists_purple_02', name: 'Чернокнижник', type: 'purple', row: 'any', power: 3, armor: 2, health: 5, influence: 8, maxInDeck: 1, effect: { type: 'passive', action: 'consume', charges: 1, description: 'Имеет 1 заряд. Может уничтожить карту рядом и увеличить свою силу на силу уничтоженной карты' } },
+    { id: 'cultists_purple_03', name: 'Иоган Брахен', type: 'purple', row: 'any', power: 3, armor: 1, health: 5, influence: 8, maxInDeck: 1, effect: { type: 'onPlay', action: 'add_charge', target: 'warlock', value: 1, description: 'При размещении дает 1 заряд Чернокнижнику' } },
+    { id: 'cultists_purple_04', name: 'Темный маг', type: 'purple', row: 'any', power: 3, armor: 1, health: 4, influence: 6, maxInDeck: 2, effect: { type: 'onPlay', action: 'destroy', target: 'own_unit_selectable', description: 'При размещении уничтожьте карту на своем поле' } },
+    { id: 'cultists_purple_05', name: 'Темный маг', type: 'purple', row: 'any', power: 3, armor: 1, health: 4, influence: 6, maxInDeck: 2, effect: { type: 'onPlay', action: 'destroy', target: 'own_unit_selectable', description: 'При размещении уничтожьте карту на своем поле' } },
+    { id: 'cultists_purple_06', name: 'Ангел смерти', type: 'purple', row: 'left', power: 4, armor: 2, health: 4, influence: 6, maxInDeck: 2, effect: { type: 'onDeath', action: 'add_charge', target: 'warlock', value: 1, description: 'После смерти дает +1 заряд Чернокнижнику' } },
+    { id: 'cultists_purple_07', name: 'Ангел смерти', type: 'purple', row: 'left', power: 4, armor: 2, health: 4, influence: 6, maxInDeck: 2, effect: { type: 'onDeath', action: 'add_charge', target: 'warlock', value: 1, description: 'После смерти дает +1 заряд Чернокнижнику' } },
+    { id: 'cultists_purple_08', name: 'Призыватель', type: 'purple', row: 'any', power: 4, armor: 1, health: 4, influence: 8, maxInDeck: 2, effect: { type: 'onPlay', action: 'revive', target: 'discard_selectable', description: 'Призовите любую карту из отбоя. Если это призрак, восполните заряд у Чернокнижника' } },
+    { id: 'cultists_purple_09', name: 'Призыватель', type: 'purple', row: 'any', power: 4, armor: 1, health: 4, influence: 8, maxInDeck: 2, effect: { type: 'onPlay', action: 'revive', target: 'discard_selectable', description: 'Призовите любую карту из отбоя. Если это призрак, восполните заряд у Чернокнижника' } },
+    
+    // Особые карты (27-36, 39)
+    { id: 'cultists_special_01', name: 'Проклятие', type: 'special', row: 'any', power: 0, armor: 0, health: 0, influence: 5, maxInDeck: 4, effect: { type: 'onPlay', action: 'curse', value: 2, trigger: 'each_turn', description: 'Накладывает проклятие на карту. Каждый ход карта теряет 2 единицы здоровья' }, discardAfterUse: true },
+    { id: 'cultists_special_02', name: 'Проклятие', type: 'special', row: 'any', power: 0, armor: 0, health: 0, influence: 5, maxInDeck: 4, effect: { type: 'onPlay', action: 'curse', value: 2, trigger: 'each_turn', description: 'Накладывает проклятие на карту. Каждый ход карта теряет 2 единицы здоровья' }, discardAfterUse: true },
+    { id: 'cultists_special_03', name: 'Проклятие', type: 'special', row: 'any', power: 0, armor: 0, health: 0, influence: 5, maxInDeck: 4, effect: { type: 'onPlay', action: 'curse', value: 2, trigger: 'each_turn', description: 'Накладывает проклятие на карту. Каждый ход карта теряет 2 единицы здоровья' }, discardAfterUse: true },
+    { id: 'cultists_special_04', name: 'Проклятие', type: 'special', row: 'any', power: 0, armor: 0, health: 0, influence: 5, maxInDeck: 4, effect: { type: 'onPlay', action: 'curse', value: 2, trigger: 'each_turn', description: 'Накладывает проклятие на карту. Каждый ход карта теряет 2 единицы здоровья' }, discardAfterUse: true },
+    { id: 'cultists_special_05', name: 'Чучело', type: 'special', row: 'any', power: 0, armor: 0, health: 0, influence: 5, maxInDeck: 3, effect: { type: 'onPlay', action: 'returnToHand', target: 'own_unit_selectable', description: 'При размещении верните любую карту со своего поля себе в руку' }, discardAfterUse: true },
+    { id: 'cultists_special_06', name: 'Чучело', type: 'special', row: 'any', power: 0, armor: 0, health: 0, influence: 5, maxInDeck: 3, effect: { type: 'onPlay', action: 'returnToHand', target: 'own_unit_selectable', description: 'При размещении верните любую карту со своего поля себе в руку' }, discardAfterUse: true },
+    { id: 'cultists_special_07', name: 'Чучело', type: 'special', row: 'any', power: 0, armor: 0, health: 0, influence: 5, maxInDeck: 3, effect: { type: 'onPlay', action: 'returnToHand', target: 'own_unit_selectable', description: 'При размещении верните любую карту со своего поля себе в руку' }, discardAfterUse: true },
+    { id: 'cultists_special_08', name: 'Пламя Лилии', type: 'special', row: 'any', power: 0, armor: 0, health: 0, influence: 8, maxInDeck: 2, effect: { type: 'onPlay', action: 'destroy', target: 'any_enemy_not_gold', description: 'Уничтожает любую карту противника, но не золотую' }, discardAfterUse: true },
+    { id: 'cultists_special_09', name: 'Пламя Лилии', type: 'special', row: 'any', power: 0, armor: 0, health: 0, influence: 8, maxInDeck: 2, effect: { type: 'onPlay', action: 'destroy', target: 'any_enemy_not_gold', description: 'Уничтожает любую карту противника, но не золотую' }, discardAfterUse: true },
+    { id: 'cultists_special_10', name: 'Призыв мертвых', type: 'special', row: 'any', power: 0, armor: 0, health: 0, influence: 8, maxInDeck: 1, effect: { type: 'onPlay', action: 'transform', into: 'cultists_purple_06', description: 'Меняет карту на вашем поле на Ангела Смерти' }, discardAfterUse: true },
+    { id: 'cultists_special_11', name: 'Подношение Лилии', type: 'special', row: 'any', power: 0, armor: 0, health: 0, influence: 8, maxInDeck: 1, effect: { type: 'onPlay', action: 'consume_buff', target: 'warlock', description: 'Если на поле есть Чернокнижник, уничтожьте любую свою карту и увеличьте силу Чернокнижника на силу этого отряда' }, discardAfterUse: true },
+    
+    // Золотые карты (40-45)
+    { id: 'cultists_gold_01', name: 'Черная Лиллия', type: 'gold', row: 'any', power: 8, armor: 2, health: 3, influence: 15, maxInDeck: 1, effect: { type: 'onPlay', action: 'summon', card: 'cultists_white_04', count: 2, description: 'При размещении Создает рядом 2 карты Падальщика' } },
+    { id: 'cultists_gold_02', name: 'Смерть', type: 'gold', row: 'any', power: 8, armor: 2, health: 4, influence: 10, maxInDeck: 1, effect: { type: 'passive', action: 'apocalypse_combo', description: 'Если в Ряду находится Война, Чума и Голод, призывает из колоды Апокалипсис' } },
+    { id: 'cultists_gold_03', name: 'Голод', type: 'gold', row: 'any', power: 8, armor: 2, health: 4, influence: 10, maxInDeck: 1, effect: { type: 'passive', action: 'apocalypse_combo', description: 'Если в Ряду находится Война, Чума и Голод, призывает из колоды Апокалипсис' } },
+    { id: 'cultists_gold_04', name: 'Война', type: 'gold', row: 'any', power: 8, armor: 2, health: 4, influence: 10, maxInDeck: 1, effect: { type: 'passive', action: 'apocalypse_combo', description: 'Если в Ряду находится Война, Чума и Голод, призывает из колоды Апокалипсис' } },
+    { id: 'cultists_gold_05', name: 'Чума', type: 'gold', row: 'any', power: 8, armor: 2, health: 4, influence: 10, maxInDeck: 1, effect: { type: 'passive', action: 'apocalypse_combo', description: 'Если в Ряду находится Война, Чума и Голод, призывает из колоды Апокалипсис' } },
+    { id: 'cultists_special_12', name: 'Апокалипсис', type: 'special', row: 'any', power: 0, armor: 0, health: 0, influence: 12, maxInDeck: 1, effect: { type: 'onPlay', action: 'destroy', target: 'any_enemy_selectable', description: 'Уничтожает любую карту противника' }, discardAfterUse: true }
+  ],
+  leaders: [
+    { id: 'cultists_leader_1', name: 'Черная Лиллия', ability: { type: 'summon', card: 'cultists_white_08', maxUses: 3, description: 'Создайте 1 призрака. Максимум 3 раза можно использовать' } },
+    { id: 'cultists_leader_2', name: 'Апокалипсис', ability: { type: 'summon', target: 'harbinger', description: 'Призовите одного из вестников (Голод, Смерть, Чума, Война) из колоды' } },
+    { id: 'cultists_leader_3', name: 'Леди Жизель', ability: { type: 'add_charge', target: 'warlock', description: 'Восполните заряд Чернокнижника' } }
+  ]
+};
+// ============================================
+// ФРАКЦИЯ 3: ДРИАДЫ ЛЕСА НИДОЛИОН (45 карт)
+// ============================================
+FACTIONS.dryads = {
+  id: 'dryads',
+  name: 'Дриады леса Нидолион',
+  color: '#2ecc71',
+  cards: [
+    // Белые карты (1-8)
+    { id: 'dryads_white_01', name: 'Лучник Леса Нидолион', type: 'white', row: 'any', power: 4, armor: 1, health: 3, influence: 4, maxInDeck: 4, effect: { type: 'onPlay', action: 'damage', value: 1, target: 'any_enemy', description: 'При размещении наносит 1 урон карте противника' } },
+    { id: 'dryads_white_02', name: 'Лучник Леса Нидолион', type: 'white', row: 'any', power: 4, armor: 1, health: 3, influence: 4, maxInDeck: 4, effect: { type: 'onPlay', action: 'damage', value: 1, target: 'any_enemy', description: 'При размещении наносит 1 урон карте противника' } },
+    { id: 'dryads_white_03', name: 'Лучник Леса Нидолион', type: 'white', row: 'any', power: 4, armor: 1, health: 3, influence: 4, maxInDeck: 4, effect: { type: 'onPlay', action: 'damage', value: 1, target: 'any_enemy', description: 'При размещении наносит 1 урон карте противника' } },
+    { id: 'dryads_white_04', name: 'Лучник Леса Нидолион', type: 'white', row: 'any', power: 4, armor: 1, health: 3, influence: 4, maxInDeck: 4, effect: { type: 'onPlay', action: 'damage', value: 1, target: 'any_enemy', description: 'При размещении наносит 1 урон карте противника' } },
+    { id: 'dryads_white_05', name: 'Дриады Леса Нидолион', type: 'white', row: 'any', power: 3, armor: 1, health: 4, influence: 4, maxInDeck: 4, effect: { type: 'passive', action: 'move_on_heal', description: 'Когда Дриада увеличивает свое здоровье она перемещает Любой отряд на своем поле в другой ряд' } },
+    { id: 'dryads_white_06', name: 'Дриады Леса Нидолион', type: 'white', row: 'any', power: 3, armor: 1, health: 4, influence: 4, maxInDeck: 4, effect: { type: 'passive', action: 'move_on_heal', description: 'Когда Дриада увеличивает свое здоровье она перемещает Любой отряд на своем поле в другой ряд' } },
+    { id: 'dryads_white_07', name: 'Дриады Леса Нидолион', type: 'white', row: 'any', power: 3, armor: 1, health: 4, influence: 4, maxInDeck: 4, effect: { type: 'passive', action: 'move_on_heal', description: 'Когда Дриада увеличивает свое здоровье она перемещает Любой отряд на своем поле в другой ряд' } },
+    { id: 'dryads_white_08', name: 'Дриады Леса Нидолион', type: 'white', row: 'any', power: 3, armor: 1, health: 4, influence: 4, maxInDeck: 4, effect: { type: 'passive', action: 'move_on_heal', description: 'Когда Дриада увеличивает свое здоровье она перемещает Любой отряд на своем поле в другой ряд' } },
+    
+    // Серые карты (9-10, 37-38)
+    { id: 'dryads_gray_01', name: 'Хранитель Леса', type: 'gray', row: 'any', power: 6, armor: 2, health: 4, influence: 6, maxInDeck: 2, effect: { type: 'passive', action: 'move_unit', charges: 3, description: 'Разходует свой заряд для перемещения одной карты в другой ряд. Заряда 3' } },
+    { id: 'dryads_gray_02', name: 'Хранитель Леса', type: 'gray', row: 'any', power: 6, armor: 2, health: 4, influence: 6, maxInDeck: 2, effect: { type: 'passive', action: 'move_unit', charges: 3, description: 'Разходует свой заряд для перемещения одной карты в другой ряд. Заряда 3' } },
+    { id: 'dryads_gray_03', name: 'Дети Леса', type: 'gray', row: 'any', power: 4, armor: 1, health: 4, influence: 6, maxInDeck: 2, effect: { type: 'passive', action: 'synergy', value: 4, stat: 'power', target: 'same_name_row', description: 'Если в ряду 2 Дитя Леса, то каждый из них получает +4 силы' } },
+    { id: 'dryads_gray_04', name: 'Дети Леса', type: 'gray', row: 'any', power: 4, armor: 1, health: 4, influence: 6, maxInDeck: 2, effect: { type: 'passive', action: 'synergy', value: 4, stat: 'power', target: 'same_name_row', description: 'Если в ряду 2 Дитя Леса, то каждый из них получает +4 силы' } },
+    
+    // Фиолетовые карты (11-26)
+    { id: 'dryads_purple_01', name: 'Лучники Долины', type: 'purple', row: 'any', power: 5, armor: 1, health: 5, influence: 8, maxInDeck: 4, effect: { type: 'passive', action: 'damage_on_move', value: 2, target: 'any_enemy', description: 'При перемещении в другой ряд наносит 2 урона Любая карте противника' } },
+    { id: 'dryads_purple_02', name: 'Лучники Долины', type: 'purple', row: 'any', power: 5, armor: 1, health: 5, influence: 8, maxInDeck: 4, effect: { type: 'passive', action: 'damage_on_move', value: 2, target: 'any_enemy', description: 'При перемещении в другой ряд наносит 2 урона Любая карте противника' } },
+    { id: 'dryads_purple_03', name: 'Лучники Долины', type: 'purple', row: 'any', power: 5, armor: 1, health: 5, influence: 8, maxInDeck: 4, effect: { type: 'passive', action: 'damage_on_move', value: 2, target: 'any_enemy', description: 'При перемещении в другой ряд наносит 2 урона Любая карте противника' } },
+    { id: 'dryads_purple_04', name: 'Лучники Долины', type: 'purple', row: 'any', power: 5, armor: 1, health: 5, influence: 8, maxInDeck: 4, effect: { type: 'passive', action: 'damage_on_move', value: 2, target: 'any_enemy', description: 'При перемещении в другой ряд наносит 2 урона Любая карте противника' } },
+    { id: 'dryads_purple_05', name: 'Разведчики Леса', type: 'purple', row: 'any', power: 3, armor: 1, health: 3, influence: 5, maxInDeck: 4, effect: { type: 'onPlay', action: 'play_special', card: 'dryads_special_01', description: 'При размещении сыграйте карту Ловушка' } },
+    { id: 'dryads_purple_06', name: 'Разведчики Леса', type: 'purple', row: 'any', power: 3, armor: 1, health: 3, influence: 5, maxInDeck: 4, effect: { type: 'onPlay', action: 'play_special', card: 'dryads_special_01', description: 'При размещении сыграйте карту Ловушка' } },
+    { id: 'dryads_purple_07', name: 'Разведчики Леса', type: 'purple', row: 'any', power: 3, armor: 1, health: 3, influence: 5, maxInDeck: 4, effect: { type: 'onPlay', action: 'play_special', card: 'dryads_special_01', description: 'При размещении сыграйте карту Ловушка' } },
+    { id: 'dryads_purple_08', name: 'Разведчики Леса', type: 'purple', row: 'any', power: 3, armor: 1, health: 3, influence: 5, maxInDeck: 4, effect: { type: 'onPlay', action: 'play_special', card: 'dryads_special_01', description: 'При размещении сыграйте карту Ловушка' } },
+    { id: 'dryads_purple_09', name: 'Ниолина Прекрасная', type: 'purple', row: 'right', power: 8, armor: 3, health: 4, influence: 8, maxInDeck: 1, effect: { type: 'onPlay', action: 'buff', value: 3, stat: 'power', target: 'adjacent', description: 'При размещении дает +3 силы карте слева и +3 силы карте справа от нее' } },
+    { id: 'dryads_purple_10', name: 'Древо мира', type: 'purple', row: 'any', power: 4, armor: 4, health: 8, influence: 8, maxInDeck: 2, effect: { type: 'onPlay', action: 'move_row', count: 2, target: 'own_row', description: 'При размещении переместите 2 карты на своем поле в этом ряду в другой' } },
+    { id: 'dryads_purple_11', name: 'Древо мира', type: 'purple', row: 'any', power: 4, armor: 4, health: 8, influence: 8, maxInDeck: 2, effect: { type: 'onPlay', action: 'move_row', count: 2, target: 'own_row', description: 'При размещении переместите 2 карты на своем поле в этом ряду в другой' } },
+    { id: 'dryads_purple_12', name: 'Целитель', type: 'purple', row: 'any', power: 4, armor: 0, health: 3, influence: 8, maxInDeck: 3, effect: { type: 'onPlay', action: 'heal', value: 3, target: 'row', description: 'При размещении все карты в ряду получают по +3 здоровья' } },
+    { id: 'dryads_purple_13', name: 'Целитель', type: 'purple', row: 'any', power: 4, armor: 0, health: 3, influence: 8, maxInDeck: 3, effect: { type: 'onPlay', action: 'heal', value: 3, target: 'row', description: 'При размещении все карты в ряду получают по +3 здоровья' } },
+    { id: 'dryads_purple_14', name: 'Целитель', type: 'purple', row: 'any', power: 4, armor: 0, health: 3, influence: 8, maxInDeck: 3, effect: { type: 'onPlay', action: 'heal', value: 3, target: 'row', description: 'При размещении все карты в ряду получают по +3 здоровья' } },
+    { id: 'dryads_purple_15', name: 'Дриада Воительница', type: 'purple', row: 'any', power: 6, armor: 2, health: 4, influence: 8, maxInDeck: 2, effect: { type: 'passive', action: 'buff_on_move', value: 1, stat: 'power', description: 'Получает +1 к силе если из данного ряда Любая карта перешла в другой ряд' } },
+    { id: 'dryads_purple_16', name: 'Дриада Воительница', type: 'purple', row: 'any', power: 6, armor: 2, health: 4, influence: 8, maxInDeck: 2, effect: { type: 'passive', action: 'buff_on_move', value: 1, stat: 'power', description: 'Получает +1 к силе если из данного ряда Любая карта перешла в другой ряд' } },
+    
+    // Особые карты (27-36, 39)
+    { id: 'dryads_special_01', name: 'Ловушка', type: 'special', row: 'any', power: 0, armor: 0, health: 0, influence: 4, maxInDeck: 4, effect: { type: 'onPlay', action: 'trap', value: 3, trigger: 'enemy_buff', description: 'Если карта противника получила силу нанесите ей 3 урона' }, discardAfterUse: true },
+    { id: 'dryads_special_02', name: 'Ловушка', type: 'special', row: 'any', power: 0, armor: 0, health: 0, influence: 4, maxInDeck: 4, effect: { type: 'onPlay', action: 'trap', value: 3, trigger: 'enemy_buff', description: 'Если карта противника получила силу нанесите ей 3 урона' }, discardAfterUse: true },
+    { id: 'dryads_special_03', name: 'Ловушка', type: 'special', row: 'any', power: 0, armor: 0, health: 0, influence: 4, maxInDeck: 4, effect: { type: 'onPlay', action: 'trap', value: 3, trigger: 'enemy_buff', description: 'Если карта противника получила силу нанесите ей 3 урона' }, discardAfterUse: true },
+    { id: 'dryads_special_04', name: 'Ловушка', type: 'special', row: 'any', power: 0, armor: 0, health: 0, influence: 4, maxInDeck: 4, effect: { type: 'onPlay', action: 'trap', value: 3, trigger: 'enemy_buff', description: 'Если карта противника получила силу нанесите ей 3 урона' }, discardAfterUse: true },
+    { id: 'dryads_special_05', name: 'Чучело', type: 'special', row: 'any', power: 0, armor: 0, health: 0, influence: 5, maxInDeck: 3, effect: { type: 'onPlay', action: 'returnToHand', target: 'own_unit_selectable', description: 'При размещении верните любую карту со своего поля себе в руку' }, discardAfterUse: true },
+    { id: 'dryads_special_06', name: 'Чучело', type: 'special', row: 'any', power: 0, armor: 0, health: 0, influence: 5, maxInDeck: 3, effect: { type: 'onPlay', action: 'returnToHand', target: 'own_unit_selectable', description: 'При размещении верните любую карту со своего поля себе в руку' }, discardAfterUse: true },
+    { id: 'dryads_special_07', name: 'Чучело', type: 'special', row: 'any', power: 0, armor: 0, health: 0, influence: 5, maxInDeck: 3, effect: { type: 'onPlay', action: 'returnToHand', target: 'own_unit_selectable', description: 'При размещении верните любую карту со своего поля себе в руку' }, discardAfterUse: true },
+    { id: 'dryads_special_08', name: 'Путы ярости', type: 'special', row: 'any', power: 0, armor: 0, health: 0, influence: 6, maxInDeck: 4, effect: { type: 'onPlay', action: 'trap', value: 2, target: 'forest_keeper', trigger: 'enemy_damage', description: 'Выберите карту противника, если она получит урон, то Хранитель Леса получит +2 заряда' }, discardAfterUse: true },
+    { id: 'dryads_special_09', name: 'Путы ярости', type: 'special', row: 'any', power: 0, armor: 0, health: 0, influence: 6, maxInDeck: 4, effect: { type: 'onPlay', action: 'trap', value: 2, target: 'forest_keeper', trigger: 'enemy_damage', description: 'Выберите карту противника, если она получит урон, то Хранитель Леса получит +2 заряда' }, discardAfterUse: true },
+    { id: 'dryads_special_10', name: 'Путы ярости', type: 'special', row: 'any', power: 0, armor: 0, health: 0, influence: 6, maxInDeck: 4, effect: { type: 'onPlay', action: 'trap', value: 2, target: 'forest_keeper', trigger: 'enemy_damage', description: 'Выберите карту противника, если она получит урон, то Хранитель Леса получит +2 заряда' }, discardAfterUse: true },
+    { id: 'dryads_special_11', name: 'Путы ярости', type: 'special', row: 'any', power: 0, armor: 0, health: 0, influence: 6, maxInDeck: 4, effect: { type: 'onPlay', action: 'trap', value: 2, target: 'forest_keeper', trigger: 'enemy_damage', description: 'Выберите карту противника, если она получит урон, то Хранитель Леса получит +2 заряда' }, discardAfterUse: true },
+    
+    // Золотые карты (40-45)
+    { id: 'dryads_gold_01', name: 'Тарик Стрелок', type: 'gold', row: 'right', power: 10, armor: 2, health: 5, influence: 12, maxInDeck: 1, effect: { type: 'passive', action: 'damage_on_enemy_buff', value: 2, description: 'Наносит 2 урона карте противника которой увеличили силу' } },
+    { id: 'dryads_gold_02', name: 'Древо жизни Нидолиона', type: 'gold', row: 'left', power: 5, armor: 4, health: 8, influence: 12, maxInDeck: 1, effect: { type: 'passive', action: 'ignore_damage', target: 'row', description: 'Пока Древо жизни находится на поле, карты в этом ряду игнорируют урон от противника' } },
+    { id: 'dryads_gold_03', name: 'Элиона', type: 'gold', row: 'any', power: 4, armor: 2, health: 6, influence: 12, maxInDeck: 1, effect: { type: 'passive', action: 'synergy', target: 'valley_archers', description: 'Если с Элионой в одном ряду есть Лучники Долины, каждый из них получает +2 к силе за каждую уничтоженную карту противника' } },
+    { id: 'dryads_gold_04', name: 'Агнес дитя леса', type: 'gold', row: 'right', power: 2, armor: 1, health: 4, influence: 12, maxInDeck: 1, effect: { type: 'onPlay', action: 'buff', value: 4, stat: 'power', target: 'forest_children', description: 'При размещении все Дети Леса получают по +4 к силе' } },
+    { id: 'dryads_gold_05', name: 'Саллия из Нидолиона', type: 'gold', row: 'any', power: 3, armor: 1, health: 6, influence: 12, maxInDeck: 1, effect: { type: 'passive', action: 'buff_per_trap', value: 2, stat: 'power', description: 'Если Саллия находится в руке, она получает +2 к силе за каждую сыгранную ловушку' } },
+    { id: 'dryads_gold_06', name: 'Повелительница Дриад Элиана', type: 'gold', row: 'any', power: 8, armor: 2, health: 10, influence: 15, maxInDeck: 1, effect: { type: 'onPlay', action: 'reset_leader', description: 'При размещении Дает возможность лидеру использовать свой Эффект снова' } }
+  ],
+  leaders: [
+    { id: 'dryads_leader_1', name: 'Принцесса Элиана', ability: { type: 'play_trap', description: 'Сыграйте любую ловушку из вашей колоды' } },
+    { id: 'dryads_leader_2', name: 'Королева Элиана', ability: { type: 'move_unit', maxUses: 3, description: 'Переместите отряд в другой ряд. Макс 3 заряда' } },
+    { id: 'dryads_leader_3', name: 'Элиана Воительница', ability: { type: 'damage', value: 6, target: 'any_enemy_selectable', description: 'Нанесите 6 урона любой карте противника' } }
+  ]
+};
+// ============================================
+// ФРАКЦИЯ 4: ОРДЕН ЧАРОДЕЕВ (45 карт)
+// ============================================
+FACTIONS.mages = {
+  id: 'mages',
+  name: 'Орден Чародеев',
+  color: '#926eae',
+  cards: [
+    // Белые карты (1-3)
+    { id: 'mages_white_01', name: 'Адепт Ордена Чародеев', type: 'white', row: 'left', power: 2, armor: 1, health: 2, influence: 2, maxInDeck: 3, effect: null },
+    { id: 'mages_white_02', name: 'Адепт Ордена Чародеев', type: 'white', row: 'left', power: 2, armor: 1, health: 2, influence: 2, maxInDeck: 3, effect: null },
+    { id: 'mages_white_03', name: 'Адепт Ордена Чародеев', type: 'white', row: 'left', power: 2, armor: 1, health: 2, influence: 2, maxInDeck: 3, effect: null },
+    
+    // Серые карты (4-12)
+    { id: 'mages_gray_01', name: 'Адепт Школы Огня', type: 'gray', row: 'left', power: 5, armor: 4, health: 4, influence: 4, maxInDeck: 2, effect: { type: 'onPlay', action: 'damage', value: 1, target: 'any_enemy', description: 'При размещении нанесите 1 урон Любая карте противника' } },
+    { id: 'mages_gray_02', name: 'Адепт Школы Огня', type: 'gray', row: 'left', power: 5, armor: 2, health: 4, influence: 4, maxInDeck: 2, effect: { type: 'onPlay', action: 'damage', value: 1, target: 'any_enemy', description: 'При размещении нанесите 1 урон Любая карте противника' } },
+    { id: 'mages_gray_03', name: 'Адепт Школы Восстановления', type: 'gray', row: 'left', power: 3, armor: 2, health: 6, influence: 4, maxInDeck: 2, effect: { type: 'onPlay', action: 'heal', value: 1, target: 'own_unit_selectable', description: 'При размещении дает +1 здоровья Любая вашей карте на поле' } },
+    { id: 'mages_gray_04', name: 'Адепт Школы Восстановления', type: 'gray', row: 'left', power: 3, armor: 2, health: 6, influence: 4, maxInDeck: 2, effect: { type: 'onPlay', action: 'heal', value: 1, target: 'own_unit_selectable', description: 'При размещении дает +1 здоровья Любая вашей карте на поле' } },
+    { id: 'mages_gray_05', name: 'Чародеи Силы Света', type: 'gray', row: 'left', power: 4, armor: 1, health: 2, influence: 5, maxInDeck: 2, effect: { type: 'onPlay', action: 'play_special', card: 'mages_special_01', description: 'При размещении сыграйте карту Элексир жизни из колоды' } },
+    { id: 'mages_gray_06', name: 'Чародеи Силы Света', type: 'gray', row: 'left', power: 1, armor: 1, health: 6, influence: 5, maxInDeck: 2, effect: { type: 'onPlay', action: 'play_special', card: 'mages_special_01', description: 'При размещении сыграйте карту Элексир жизни из колоды' } },
+    
+    // Особые карты (10-12, 25-36, 41-42)
+    { id: 'mages_special_01', name: 'Элексир Жизни', type: 'special', row: 'any', power: 0, armor: 0, health: 0, influence: 6, maxInDeck: 3, effect: { type: 'onPlay', action: 'heal', value: 3, target: 'own_unit_selectable', description: 'При размещении дает +3 к жизни выбранной карте' }, discardAfterUse: true },
+    { id: 'mages_special_02', name: 'Элексир Жизни', type: 'special', row: 'any', power: 0, armor: 0, health: 0, influence: 6, maxInDeck: 3, effect: { type: 'onPlay', action: 'heal', value: 3, target: 'own_unit_selectable', description: 'При размещении дает +3 к жизни выбранной карте' }, discardAfterUse: true },
+    { id: 'mages_special_03', name: 'Элексир Жизни', type: 'special', row: 'any', power: 0, armor: 0, health: 0, influence: 6, maxInDeck: 3, effect: { type: 'onPlay', action: 'heal', value: 3, target: 'own_unit_selectable', description: 'При размещении дает +3 к жизни выбранной карте' }, discardAfterUse: true },
+    { id: 'mages_special_04', name: 'Магическая картечь', type: 'special', row: 'any', power: 0, armor: 0, health: 0, influence: 4, maxInDeck: 3, effect: { type: 'onPlay', action: 'damage', value: 4, target: 'any_unit_selectable', description: 'Нанесите 4 урона карте' }, discardAfterUse: true },
+    { id: 'mages_special_05', name: 'Магическая картечь', type: 'special', row: 'any', power: 0, armor: 0, health: 0, influence: 4, maxInDeck: 3, effect: { type: 'onPlay', action: 'damage', value: 4, target: 'any_unit_selectable', description: 'Нанесите 4 урона карте' }, discardAfterUse: true },
+    { id: 'mages_special_06', name: 'Магическая картечь', type: 'special', row: 'any', power: 0, armor: 0, health: 0, influence: 4, maxInDeck: 3, effect: { type: 'onPlay', action: 'damage', value: 4, target: 'any_unit_selectable', description: 'Нанесите 4 урона карте' }, discardAfterUse: true },
+    { id: 'mages_special_07', name: 'Чучело', type: 'special', row: 'any', power: 0, armor: 0, health: 0, influence: 5, maxInDeck: 3, effect: { type: 'onPlay', action: 'returnToHand', target: 'own_unit_selectable', description: 'При размещении верните любую карту со своего поля себе в руку' }, discardAfterUse: true },
+    { id: 'mages_special_08', name: 'Чучело', type: 'special', row: 'any', power: 0, armor: 0, health: 0, influence: 5, maxInDeck: 3, effect: { type: 'onPlay', action: 'returnToHand', target: 'own_unit_selectable', description: 'При размещении верните любую карту со своего поля себе в руку' }, discardAfterUse: true },
+    { id: 'mages_special_09', name: 'Чучело', type: 'special', row: 'any', power: 0, armor: 0, health: 0, influence: 5, maxInDeck: 3, effect: { type: 'onPlay', action: 'returnToHand', target: 'own_unit_selectable', description: 'При размещении верните любую карту со своего поля себе в руку' }, discardAfterUse: true },
+    { id: 'mages_special_10', name: 'Портал', type: 'special', row: 'any', power: 0, armor: 0, health: 0, influence: 10, maxInDeck: 1, effect: { type: 'onPlay', action: 'summon', count: 2, maxInfluence: 6, description: 'При размещении из колоды выйдет на поле любые 2 карты влияние которых до 6' }, discardAfterUse: true },
+    { id: 'mages_special_11', name: 'Пространственный Порошок', type: 'special', row: 'any', power: 0, armor: 0, health: 0, influence: 5, maxInDeck: 4, effect: { type: 'onPlay', action: 'move_row', target: 'enemy_unit_selectable', description: 'При размещении передвиньте карту в любом ряду противника в другой' }, discardAfterUse: true },
+    { id: 'mages_special_12', name: 'Пространственный Порошок', type: 'special', row: 'any', power: 0, armor: 0, health: 0, influence: 5, maxInDeck: 4, effect: { type: 'onPlay', action: 'move_row', target: 'enemy_unit_selectable', description: 'При размещении передвиньте карту в любом ряду противника в другой' }, discardAfterUse: true },
+    { id: 'mages_special_13', name: 'Пространственный Порошок', type: 'special', row: 'any', power: 0, armor: 0, health: 0, influence: 5, maxInDeck: 4, effect: { type: 'onPlay', action: 'move_row', target: 'enemy_unit_selectable', description: 'При размещении передвиньте карту в любом ряду противника в другой' }, discardAfterUse: true },
+    { id: 'mages_special_14', name: 'Пространственный Порошок', type: 'special', row: 'any', power: 0, armor: 0, health: 0, influence: 5, maxInDeck: 4, effect: { type: 'onPlay', action: 'move_row', target: 'enemy_unit_selectable', description: 'При размещении передвиньте карту в любом ряду противника в другой' }, discardAfterUse: true },
+    { id: 'mages_special_15', name: 'Порошок Ангилеи', type: 'special', row: 'any', power: 0, armor: 0, health: 0, influence: 10, maxInDeck: 1, effect: { type: 'onPlay', action: 'buff', value: 4, stat: 'power', target: 'own_unit_selectable', count: 3, description: 'При размещении выберете 3 карты на своем поле и увеличьте их силу на +4' }, discardAfterUse: true },
+    { id: 'mages_special_16', name: 'Инквизиция', type: 'special', row: 'any', power: 0, armor: 0, health: 0, influence: 12, maxInDeck: 1, effect: { type: 'onPlay', action: 'destroy', target: 'any_unit_selectable', special: 'indulgence', description: 'При размещении уничтожает любую карту на выбор. Если это ваша карта то сыграйте карту Индульгенция' }, discardAfterUse: true },
+    { id: 'mages_special_17', name: 'Индульгенция', type: 'special', row: 'any', power: 0, armor: 0, health: 0, influence: 12, maxInDeck: 1, effect: { type: 'onPlay', action: 'revive_buff', value: 6, stat: 'power', target: 'discard_selectable', description: 'При размещении выберите карту из отбоя, верните ее на поле и дайте ей +6 к силе' }, discardAfterUse: true },
+    
+    // Фиолетовые карты (13-24)
+    { id: 'mages_purple_01', name: 'Советник Короля', type: 'purple', row: 'enemy_field', power: 3, armor: 3, health: 3, influence: 6, maxInDeck: 3, effect: { type: 'onPlay', action: 'steal', target: 'enemy_field_selectable', description: 'При размещении заберите карту с поля противника на свое поле' } },
+    { id: 'mages_purple_02', name: 'Советник Короля', type: 'purple', row: 'enemy_field', power: 3, armor: 3, health: 3, influence: 6, maxInDeck: 3, effect: { type: 'onPlay', action: 'steal', target: 'enemy_field_selectable', description: 'При размещении заберите карту с поля противника на свое поле' } },
+    { id: 'mages_purple_03', name: 'Советник Короля', type: 'purple', row: 'enemy_field', power: 3, armor: 3, health: 3, influence: 6, maxInDeck: 3, effect: { type: 'onPlay', action: 'steal', target: 'enemy_field_selectable', description: 'При размещении заберите карту с поля противника на свое поле' } },
+    { id: 'mages_purple_04', name: 'Магистр Ордена', type: 'purple', row: 'right', power: 6, armor: 0, health: 4, influence: 8, maxInDeck: 2, effect: { type: 'passive', action: 'damage_on_heal', value: 1, target: 'any_enemy', description: 'Если этой карте увеличивают здоровье, наносит 1 урон Любая карте противника' } },
+    { id: 'mages_purple_05', name: 'Магистр Ордена', type: 'purple', row: 'right', power: 6, armor: 0, health: 4, influence: 8, maxInDeck: 2, effect: { type: 'passive', action: 'damage_on_heal', value: 1, target: 'any_enemy', description: 'Если этой карте увеличивают здоровье, наносит 1 урон Любая карте противника' } },
+    { id: 'mages_purple_06', name: 'Магистр Темных Искусств', type: 'purple', row: 'right', power: 4, armor: 0, health: 2, influence: 6, maxInDeck: 2, effect: { type: 'onPlay', action: 'swap', target: 'enemy_field_selectable', source: 'enemy_discard', description: 'При размещении замените карту противника на поле Любая картой из его сброса' } },
+    { id: 'mages_purple_07', name: 'Магистр Темных Искусств', type: 'purple', row: 'right', power: 4, armor: 0, health: 2, influence: 6, maxInDeck: 2, effect: { type: 'onPlay', action: 'swap', target: 'enemy_field_selectable', source: 'enemy_discard', description: 'При размещении замените карту противника на поле Любая картой из его сброса' } },
+    { id: 'mages_purple_08', name: 'Некромант', type: 'purple', row: 'any', power: 2, armor: 0, health: 0, influence: 8, maxInDeck: 1, effect: { type: 'onPlay', action: 'revive_play', count: 1, target: 'discard', description: 'При размещении возьмите 1 карту из отбоя, и сразу разыграйте ее' } },
+    { id: 'mages_purple_09', name: 'Мастер Шпионажа', type: 'purple', row: 'enemy_field', power: 6, armor: 2, health: 2, influence: 6, maxInDeck: 2, effect: { type: 'onPlay', action: 'reveal', value: 3, target: 'enemy_hand', description: 'При размещении на поле противника посмотрите 3 его карты из руки' } },
+    { id: 'mages_purple_10', name: 'Мастер Шпионажа', type: 'purple', row: 'enemy_field', power: 6, armor: 2, health: 2, influence: 6, maxInDeck: 2, effect: { type: 'onPlay', action: 'reveal', value: 3, target: 'enemy_hand', description: 'При размещении на поле противника посмотрите 3 его карты из руки' } },
+    { id: 'mages_purple_11', name: 'Магистр Ларгусс', type: 'purple', row: 'any', power: 10, armor: 2, health: 4, influence: 8, maxInDeck: 1, effect: null },
+    { id: 'mages_purple_12', name: 'Арториус Вандевер', type: 'purple', row: 'left', power: 8, armor: 1, health: 5, influence: 8, maxInDeck: 1, effect: { type: 'onPlay', action: 'double_trigger', target: 'own_unit_selectable', description: 'При размещении выберите карту на своем поле и разыграйте ее размещение еще раз' } },
+    
+    // Золотые карты (37-45)
+    { id: 'mages_gold_01', name: 'Шайа Ванбюрен', type: 'gold', row: 'any', power: 8, armor: 0, health: 5, influence: 12, maxInDeck: 1, effect: { type: 'onPlay', action: 'returnToHand', target: 'discard_selectable', description: 'При размещении верните из отбоя в руку одну карту' } },
+    { id: 'mages_gold_02', name: 'Альмерия Франкен', type: 'gold', row: 'any', power: 4, armor: 0, health: 6, influence: 12, maxInDeck: 1, effect: { type: 'passive', action: 'buff_per_turn', value: 1, stat: 'power', trigger: 'enemy_turn', description: 'Пока эта карта находится в руке, после каждого хода противника она увеличивает силу на +1' } },
+    { id: 'mages_gold_03', name: 'Гюсто', type: 'gold', row: 'any', power: 10, armor: 0, health: 10, influence: 12, maxInDeck: 1, effect: { type: 'passive', action: 'auto_play', round: 3, description: 'Если вы не сыграли эту карту, то она в начале 3 раунда выйдет на поле из колоды или руки автоматически' } },
+    { id: 'mages_gold_04', name: 'Кот в мешке', type: 'gold', row: 'any', power: 0, armor: 0, health: 0, influence: 12, maxInDeck: 1, effect: { type: 'onPlay', action: 'randomize_stats', powerRange: [1, 14], armorRange: [1, 14], healthRange: [1, 14], description: 'При размещении Сила, броня и Здоровье будут выбраны случайным образом' } },
+    { id: 'mages_gold_05', name: 'Чародей Алексиос', type: 'gold', row: 'enemy_field', power: 5, armor: 1, health: 5, influence: 15, maxInDeck: 1, effect: { type: 'passive', action: 'mirror_buff', description: 'Когда противник усиливает свою карту Чародей Алексиос тоже усиливается на данное число' } },
+    { id: 'mages_gold_06', name: 'Чародей Кристофф', type: 'gold', row: 'any', power: 10, armor: 5, health: 12, influence: 15, maxInDeck: 1, effect: { type: 'passive', action: 'revive', value: 3, description: 'Если у чародея Кристоффа закончилось здоровье он восполняет еще 3 единицы' } },
+    { id: 'mages_gold_07', name: 'Чародей Магнуссен', type: 'gold', row: 'any', power: 5, armor: 1, health: 3, influence: 20, maxInDeck: 1, effect: { type: 'passive', action: 'persist', description: 'Эта карта остается на поле до окончания игры. В конце раунда не уходит в отбой' } }
+  ],
+  leaders: [
+    { id: 'mages_leader_1', name: 'Чародей Магнуссен', ability: { type: 'copy', description: 'Копирует умение лидера противника' } },
+    { id: 'mages_leader_2', name: 'Чародей Кристофф', ability: { type: 'reveal_take', value: 3, description: 'Посмотрите 3 верхние карты колоды противника и возьмите одну себе в руку' } },
+    { id: 'mages_leader_3', name: 'Чародей Алексиос', ability: { type: 'returnToHand', target: 'discard_selectable', description: 'Верните 1 карту из отбоя в руку' } }
+  ]
+};
+
+// === ЭКСПОРТ ДЛЯ ИГРЫ ===
+if (typeof window !== 'undefined') {
+  window.GAME_CONFIG = GAME_CONFIG;
+  window.FACTIONS = FACTIONS;
+}
