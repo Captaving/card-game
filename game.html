@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Битва Карт - Полный Экран</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        :root {
+            --bg-color: #1a1a1a;
+            --card-bg: #2c3e50;
+            --slot-bg: rgba(255,255,255,0.1);
+            --highlight: #f1c40f;
+            --p1-color: #3498db;
+            --p2-color: #e74c3c;
+        }
+        body { margin: 0; padding: 0; background: var(--bg-color); color: white; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; overflow: hidden; user-select: none; }
+        
+        /* Layout */
+        .game-container { display: grid; grid-template-rows: 1fr 1.2fr 1fr; height: 100vh; width: 100vw; position: relative; }
+        
+        /* Top Bar (Enemy Info) */
+        .top-bar { display: flex; justify-content: space-between; align-items: flex-start; padding: 5px 10px; background: rgba(0,0,0,0.3); }
+        .leader-icon { width: 50px; height: 50px; border-radius: 50%; border: 2px solid var(--p2-color); background: #444; display: flex; align-items: center; justify-content: center; font-size: 24px; position: relative; cursor: pointer; }
+        .leader-coins { position: absolute; top: -5px; right: -5px; background: var(--highlight); color: #000; border-radius: 50%; width: 20px; height: 20px; font-size: 12px; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+        .enemy-stats { display: flex; gap: 15px; font-size: 12px; text-align: center; }
+        .stat-box { background: rgba(0,0,0,0.5); padding: 4px 8px; border-radius: 6px; min-width: 30px; }
+        .stat-label { font-size: 9px; opacity: 0.7; display: block; }
+        
+        /* Battle Field */
+        .battle-field { display: flex; flex-direction: column; justify-content: center; gap: 10px; padding: 5px; position: relative; }
+        .row-container { display: flex; justify-content: center; gap: 20px; height: 100px; }
+        .lane { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 4px; width: 160px; background: var(--slot-bg); border-radius: 8px; padding: 4px; border: 1px solid rgba(255,255,255,0.05); }
+        .lane.enemy { border-color: rgba(231, 76, 60, 0.3); }
+        .lane.player { border-color: rgba(52, 152, 219, 0.3); }
+        .slot { background: rgba(0,0,0,0.2); border-radius: 4px; position: relative; display: flex; align-items: center; justify-content: center; }
+        .slot.highlight { border: 2px dashed var(--highlight); animation: pulse 1s infinite; }
+        
+        @keyframes pulse { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
+
+        /* Center Info (Score & Pass) */
+        .center-info { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 10px; z-index: 10; }
+        .score-display { font-size: 20px; font-weight: bold; background: rgba(0,0,0,0.8); padding: 5px 15px; border-radius: 20px; border: 1px solid #555; }
+        .pass-btn { background: #e67e22; color: white; border: none; padding: 8px 20px; border-radius: 20px; font-weight: bold; font-size: 14px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+        .pass-btn:active { transform: scale(0.95); }
+        .pass-btn.disabled { background: #555; opacity: 0.5; pointer-events: none; }
+
+        /* Bottom Bar (Player Info) */
+        .bottom-bar { display: flex; justify-content: space-between; align-items: flex-end; padding: 5px 10px; background: rgba(0,0,0,0.3); position: relative; }
+        .player-stats { display: flex; gap: 15px; font-size: 12px; text-align: center; }
+        .hand-area { flex-grow: 1; display: flex; justify-content: center; gap: 5px; padding-bottom: 5px; overflow-x: auto; max-height: 110px; }
+        
+        /* Cards */
+        .card { width: 60px; height: 80px; background: var(--card-bg); border-radius: 6px; border: 1px solid #555; font-size: 9px; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; transition: transform 0.1s; flex-shrink: 0; }
+        .card.on-board { width: 100%; height: 100%; border: none; background: transparent; }
+        .card-cost { position: absolute; top: -2px; left: -2px; background: #926eae; color: white; border-radius: 50%; width: 16px; height: 16px; font-size: 10px; display: flex; align-items: center; justify-content: center; border: 1px solid white; z-index: 2; }
+        .card-stats { display: flex; gap: 4px; font-weight: bold; margin-top: 2px; }
+        .stat-atk { color: #e74c3c; }
+        .stat-hp { color: #2ecc71; }
+        .card-name { text-align: center; font-weight: 600; line-height: 1.1; margin-bottom: 2px; }
+        .card-effect { font-size: 7px; opacity: 0.8; text-align: center; padding: 0 2px; display: none; } /* Скрыто на поле, видно в руке при тапе */
+        .card.in-hand:hover { transform: translateY(-10px); z-index: 10; }
+        .card.in-hand:active { transform: scale(0.95); }
+
+        /* Modals */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 100; display: none; align-items: center; justify-content: center; backdrop-filter: blur(3px); }
+        .modal-content { background: #2c3e50; padding: 20px; border-radius: 12px; width: 85%; max-width: 300px; text-align: center; border: 1px solid #555; }
+        .modal-title { font-size: 18px; font-weight: bold; margin-bottom: 15px; }
+        .row-options { display: flex; gap: 10px; justify-content: center; }
+        .row-btn { background: #34495e; border: 1px solid #555; color: white; padding: 10px 15px; border-radius: 8px; cursor: pointer; font-size: 14px; }
+        .row-btn:hover { background: #3498db; }
+        .close-modal { margin-top: 15px; background: #e74c3c; border: none; color: white; padding: 8px 16px; border-radius: 6px; cursor: pointer; width: 100%; }
+        
+        .info-text { font-size: 13px; line-height: 1.4; text-align: left; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 6px; margin-bottom: 10px; }
+        .list-preview { font-size: 11px; text-align: left; max-height: 150px; overflow-y: auto; background: rgba(0,0,0,0.2); padding: 5px; border-radius: 4px; }
+        .list-item { padding: 2px 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
+
+        /* Toast */
+        .toast { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.8); color: white; padding: 10px 20px; border-radius: 20px; font-size: 14px; pointer-events: none; opacity: 0; transition: opacity 0.3s; z-index: 200; }
+        .toast.show { opacity: 1; }
+    </style>
+</head>
+<body>
+
+<div class="game-container">
+    <!-- ВЕРХНЯЯ ПАНЕЛЬ (ПРОТИВНИК) -->
+    <div class="top-bar">
+        <div class="leader-icon" id="enemy-leader" ondblclick="showLeaderInfo('enemy')" onclick="activateLeader('enemy')">
+            🤖
+            <div class="leader-coins" id="enemy-coins">0</div>
+        </div>
+        <div class="enemy-stats">
+            <div class="stat-box" ondblclick="showList('enemy-hand')">
+                <span class="stat-label">Рука</span>
+                <span id="enemy-hand-count">0</span>
+            </div>
+            <div class="stat-box" ondblclick="showList('enemy-deck')">
+                <span class="stat-label">Колода</span>
+                <span id="enemy-deck-count">0</span>
+            </div>
+            <div class="stat-box" ondblclick="showList('enemy-discard')">
+                <span class="stat-label">Отбой</span>
+                <span id="enemy-discard-count">0</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ПОЛЕ БОЯ -->
+    <div class="battle-field">
+        <!-- Ряды противника -->
+        <div class="row-container">
+            <div class="lane enemy" id="enemy-left">
+                <div class="slot" data-row="left" data-pos="0"></div><div class="slot" data-row="left" data-pos="1"></div>
+                <div class="slot" data-row="left" data-pos="2"></div><div class="slot" data-row="left" data-pos="3"></div>
+            </div>
+            <div class="lane enemy" id="enemy-right">
+                <div class="slot" data-row="right" data-pos="0"></div><div class="slot" data-row="right" data-pos="1"></div>
+                <div class="slot" data-row="right" data-pos="2"></div><div class="slot" data-row="right" data-pos="3"></div>
+            </div>
+        </div>
+
+        <!-- ЦЕНТР (Счет и Пас) -->
+        <div class="center-info">
+            <div class="score-display">
+                <span style="color:var(--p1-color)" id="score-p1">0</span> : <span style="color:var(--p2-color)" id="score-p2">0</span>
+                <div style="font-size:10px; font-weight:normal; margin-top:2px;">Раунд <span id="round-num">1</span>/3</div>
+            </div>
+            <button class="pass-btn" id="pass-btn" onclick="game.passTurn()">ПАСС</button>
+        </div>
+
+        <!-- Ряды игрока -->
+        <div class="row-container">
+            <div class="lane player" id="player-left">
+                <div class="slot" data-row="left" data-pos="0"></div><div class="slot" data-row="left" data-pos="1"></div>
+                <div class="slot" data-row="left" data-pos="2"></div><div class="slot" data-row="left" data-pos="3"></div>
+            </div>
+            <div class="lane player" id="player-right">
+                <div class="slot" data-row="right" data-pos="0"></div><div class="slot" data-row="right" data-pos="1"></div>
+                <div class="slot" data-row="right" data-pos="2"></div><div class="slot" data-row="right" data-pos="3"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- НИЖНЯЯ ПАНЕЛЬ (ИГРОК) -->
+    <div class="bottom-bar">
+        <div class="player-stats">
+            <div class="stat-box" ondblclick="showList('my-discard')">
+                <span class="stat-label">Отбой</span>
+                <span id="my-discard-count">0</span>
+            </div>
+            <div class="stat-box" ondblclick="showList('my-deck')">
+                <span class="stat-label">Колода</span>
+                <span id="my-deck-count">0</span>
+            </div>
+        </div>
+        
+        <div class="hand-area" id="player-hand"></div>
+
+        <div class="leader-icon" id="my-leader" style="border-color: var(--p1-color);" ondblclick="showLeaderInfo('my')" onclick="activateLeader('my')">
+            🛡️
+            <div class="leader-coins" id="my-coins">0</div>
+        </div>
+    </div>
+</div>
+
+<!-- МОДАЛЬНЫЕ ОКНА -->
+<div class="modal-overlay" id="modal-overlay">
+    <div class="modal-content" id="modal-content">
+        <!-- Динамический контент -->
+    </div>
+</div>
+
+<div class="toast" id="toast">Сообщение</div>
+
+<script src="config.js"></script>
+<script>
+// === ЛОГИКА ИГРЫ ===
+class GameEngine {
+    constructor() {
+        this.tg = window.Telegram.WebApp;
+        this.tg.expand();
+        this.tg.ready();
+        
+        // Состояние игры
+        this.state = {
+            round: 1,
+            maxRounds: 3,
+            myCoins: 0,
+            enemyCoins: 0,
+            myScore: 0,
+            enemyScore: 0,
+            turn: 'my', // 'my' или 'enemy'
+            gameOver: false,
+            canPass: false,
+            
+            // Зоны
+            myHand: [],
+            myDeck: [],
+            myDiscard: [],
+            myBoard: { left: [null, null, null, null], right: [null, null, null, null] },
+            
+            enemyHand: [],
+            enemyDeck: [],
+            enemyDiscard: [],
+            enemyBoard: { left: [null, null, null, null], right: [null, null, null, null] },
+            
+            selectedCardIdx: null
+        };
+
+        this.leaders = {
+            my: { name: "Ваш Лидер", effect: "Раз в раунд: +2 силы всем в левом ряду", used: false },
+            enemy: { name: "Лидер Врага", effect: "Раз в раунд: Нанести 2 урона случайной карте", used: false }
+        };
+
+        this.initGame();
+    }
+
+    initGame() {
+        // Загрузка колоды
+        const savedDeck = localStorage.getItem('tempMatchDeck');
+        let deckData = savedDeck ? JSON.parse(savedDeck) : FACTIONS.knights.cards.slice(0, 25);
+        
+        // Инициализация колод
+        this.state.myDeck = deckData.map(c => ({...c, uid: Math.random()}));
+        this.state.enemyDeck = [...FACTIONS.cultists.cards].sort(() => 0.5-Math.random()).slice(0, 25).map(c => ({...c, uid: Math.random()}));
+        
+        this.shuffle(this.state.myDeck);
+        this.shuffle(this.state.enemyDeck);
+        
+        // Стартовая рука
+        this.drawCards('my', 10);
+        this.drawCards('enemy', 10);
+        
+        this.updateUI();
+        this.showToast("Начало игры! Ваш ход.");
+    }
+
+    shuffle(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+    }
+
+    drawCards(who, count) {
+        const deck = who === 'my' ? this.state.myDeck : this.state.enemyDeck;
+        const hand = who === 'my' ? this.state.myHand : this.state.enemyHand;
+        
+        for(let i=0; i<count; i++) {
+            if(deck.length > 0 && hand.length < 10) {
+                hand.push(deck.pop());
+            }
+        }
+    }
+
+    // Выбор карты из руки
+    selectCard(idx) {
+        if (this.state.turn !== 'my' || this.state.gameOver) return;
+        
+        const card = this.state.myHand[idx];
+        this.state.selectedCardIdx = idx;
+        
+        // Проверка рядов
+        const allowedRows = [];
+        if (card.row === 'left' || card.row === 'any') allowedRows.push('left');
+        if (card.row === 'right' || card.row === 'any') allowedRows.push('right');
+        
+        // Проверка заполненности
+        const validRows = allowedRows.filter(r => this.state.myBoard[r].filter(c => c !== null).length < 4);
+        
+        if (validRows.length === 0) {
+            this.showToast("Нет места на поле!");
+            this.state.selectedCardIdx = null;
+            return;
+        }
+
+        this.showRowSelector(validRows, card);
+    }
+
+    showRowSelector(rows, card) {
+        const modal = document.getElementById('modal-overlay');
+        const content = document.getElementById('modal-content');
+        
+        let buttons = rows.map(r => 
+            `<button class="row-btn" onclick="game.placeCard('${r}')">${r === 'left' ? 'Левый ряд' : 'Правый ряд'}</button>`
+        ).join('');
+
+        content.innerHTML = `
+            <div class="modal-title">Выберите ряд для: ${card.name}</div>
+            <div style="font-size:12px; margin-bottom:10px; opacity:0.8">${card.effect ? card.effect.description : 'Нет эффекта'}</div>
+            <div class="row-options">${buttons}</div>
+            <button class="close-modal" onclick="game.closeModal()">Отмена</button>
+        `;
+        modal.style.display = 'flex';
+    }
+
+    placeCard(row) {
+        const idx = this.state.selectedCardIdx;
+        if (idx === null) return;
+        
+        const card = this.state.myHand.splice(idx, 1)[0];
+        const boardRow = this.state.myBoard[row];
+        
+        // Поиск первого пустого слота
+        const emptyPos = boardRow.findIndex(c => c === null);
+        if (emptyPos !== -1) {
+            boardRow[emptyPos] = { ...card, currentHp: card.health, currentPower: card.power };
+            
+            // Активация эффекта
+            if (card.effect) this.triggerEffect(card, 'my');
+            
+            this.state.selectedCardIdx = null;
+            this.closeModal();
+            this.endMyTurn();
+        }
+    }
+
+    triggerEffect(card, who) {
+        if (!card.effect) return;
+        const eff = card.effect;
+        
+        // Простая реализация эффектов
+        if (eff.action === 'damage') {
+            const targetBoard = who === 'my' ? this.state.enemyBoard : this.state.myBoard;
+            // Ищем случайную живую карту
+            const allUnits = [...targetBoard.left, ...targetBoard.right].filter(c => c !== null);
+            if (allUnits.length > 0) {
+                const target = allUnits[Math.floor(Math.random() * allUnits.length)];
+                target.currentHp -= eff.value;
+                this.showToast(`${card.name} нанес ${eff.value} урона!`);
+                if (target.currentHp <= 0) this.handleDeath(target, who === 'my' ? 'enemy' : 'my');
+            }
+        } else if (eff.action === 'buff') {
+            this.showToast(`${card.name} усиливает союзников!`);
+            // Логика бафа (упрощенно: все свои +1 к силе)
+            const myUnits = [...this.state.myBoard.left, ...this.state.myBoard.right].filter(c => c !== null);
+            myUnits.forEach(u => u.currentPower += 1);
+        } else if (eff.action === 'heal') {
+             this.showToast(`${card.name} лечит союзников!`);
+             const myUnits = [...this.state.myBoard.left, ...this.state.myBoard.right].filter(c => c !== null);
+             myUnits.forEach(u => {
+                 u.currentHp = Math.min(u.currentHp + eff.value, u.maxHealth || u.health);
+             });
+        }
+        // Добавить остальные эффекты по аналогии
+    }
+
+    handleDeath(cardUnit, owner) {
+        // Перемещение в отбой
+        if (owner === 'my') {
+            this.state.myDiscard.push(cardUnit);
+            // Очистка с поля
+            ['left', 'right'].forEach(r => {
+                const idx = this.state.myBoard[r].indexOf(cardUnit);
+                if (idx !== -1) this.state.myBoard[r][idx] = null;
+            });
+        } else {
+            this.state.enemyDiscard.push(cardUnit);
+            ['left', 'right'].forEach(r => {
+                const idx = this.state.enemyBoard[r].indexOf(cardUnit);
+                if (idx !== -1) this.state.enemyBoard[r][idx] = null;
+            });
+        }
+    }
+
+    endMyTurn() {
+        this.calculateScore();
+        this.state.turn = 'enemy';
+        this.updateUI();
+        
+        // Ход бота через паузу
+        setTimeout(() => this.botTurn(), 1500);
+    }
+
+    botTurn() {
+        if (this.state.gameOver) return;
+        
+        // Простейший ИИ: сыграть случайную карту если есть мана/место
+        const hand = this.state.enemyHand;
+        if (hand.length > 0) {
+            const cardIdx = Math.floor(Math.random() * hand.length);
+            const card = hand[cardIdx];
+            const row = (card.row === 'any') ? (Math.random()>0.5?'left':'right') : card.row;
+            
+            if (this.state.enemyBoard[row].filter(c=>c!==null).length < 4) {
+                hand.splice(cardIdx, 1);
+                const emptyPos = this.state.enemyBoard[row].findIndex(c => c === null);
+                this.state.enemyBoard[row][emptyPos] = { ...card, currentHp: card.health, currentPower: card.power };
+                if (card.effect) this.triggerEffect(card, 'enemy');
+            }
+        }
+        
+        this.state.turn = 'my';
+        this.calculateScore();
+        this.updateUI();
+        this.checkRoundEnd();
+    }
+
+    passTurn() {
+        if (this.state.turn !== 'my') return;
+        this.showToast("Вы пропустили ход");
+        this.endMyTurn();
+    }
+
+    calculateScore() {
+        const sumBoard = (board) => {
+            return [...board.left, ...board.right].reduce((acc, c) => acc + (c ? c.currentPower : 0), 0);
+        };
+        this.state.myScore = sumBoard(this.state.myBoard);
+        this.state.enemyScore = sumBoard(this.state.enemyBoard);
+    }
+
+    checkRoundEnd() {
+        // Условие конца раунда: оба паснули или руки пусты (упрощено: просто если ходы кончились)
+        // Для демо: если у обоих нет карт в руке и на поле ничего не меняется -> конец раунда
+        // Здесь эмулируем конец раунда если у бота кончились карты или рандомно для теста
+        if (this.state.enemyHand.length === 0 && this.state.myHand.length === 0) {
+            this.finishRound();
+        }
+    }
+
+    finishRound() {
+        let msg = "";
+        if (this.state.myScore > this.state.enemyScore) {
+            this.state.myCoins++;
+            msg = "Победа в раунде! +1 Монета";
+        } else if (this.state.enemyScore > this.state.myScore) {
+            this.state.enemyCoins++;
+            msg = "Поражение в раунде.";
+        } else {
+            msg = "Ничья в раунде.";
+        }
+        
+        this.showToast(msg);
+        
+        // Проверка победы в матче
+        if (this.state.myCoins >= 2) { this.endGame(true); return; }
+        if (this.state.enemyCoins >= 2) { this.endGame(false); return; }
+        
+        if (this.state.round < 3) {
+            setTimeout(() => {
+                this.state.round++;
+                this.resetRound();
+                this.showToast(`Раунд ${this.state.round}`);
+            }, 2000);
+        } else {
+            // Конец игры по очкам монет
+            this.endGame(this.state.myCoins > this.state.enemyCoins);
+        }
+    }
+
+    resetRound() {
+        // Очистка поля в отбой
+        [...this.state.myBoard.left, ...this.state.myBoard.right].forEach(c => { if(c) this.state.myDiscard.push(c); });
+        [...this.state.enemyBoard.left, ...this.state.enemyBoard.right].forEach(c => { if(c) this.state.enemyDiscard.push(c); });
+        
+        this.state.myBoard = { left: [null,null,null,null], right: [null,null,null,null] };
+        this.state.enemyBoard = { left: [null,null,null,null], right: [null,null,null,null] };
+        
+        this.drawCards('my', 3);
+        this.drawCards('enemy', 3);
+        this.updateUI();
+    }
+
+    endGame(win) {
+        this.state.gameOver = true;
+        setTimeout(() => {
+            alert(win ? "🏆 ВЫ ПОБЕДИЛИ В МАТЧЕ!" : "💀 ВЫ ПРОИГРАЛИ МАТЧ");
+            window.location.href = 'index.html';
+        }, 1000);
+    }
+
+    // === UI ФУНКЦИИ ===
+    updateUI() {
+        // Счет и монеты
+        document.getElementById('score-p1').innerText = this.state.myScore;
+        document.getElementById('score-p2').innerText = this.state.enemyScore;
+        document.getElementById('round-num').innerText = this.state.round;
+        document.getElementById('my-coins').innerText = this.state.myCoins;
+        document.getElementById('enemy-coins').innerText = this.state.enemyCoins;
+        
+        // Статистика
+        document.getElementById('my-hand-count').innerText = this.state.myHand.length; // Скрыто в руке, но для логики
+        document.getElementById('my-deck-count').innerText = this.state.myDeck.length;
+        document.getElementById('my-discard-count').innerText = this.state.myDiscard.length;
+        
+        document.getElementById('enemy-hand-count').innerText = this.state.enemyHand.length;
+        document.getElementById('enemy-deck-count').innerText = this.state.enemyDeck.length;
+        document.getElementById('enemy-discard-count').innerText = this.state.enemyDiscard.length;
+
+        // Отрисовка руки
+        const handDiv = document.getElementById('player-hand');
+        handDiv.innerHTML = '';
+        if (this.state.turn === 'my') {
+            this.state.myHand.forEach((card, idx) => {
+                const el = document.createElement('div');
+                el.className = 'card in-hand';
+                el.innerHTML = `
+                    <div class="card-cost">${card.influence}</div>
+                    <div class="card-name">${card.name}</div>
+                    <div class="card-stats"><span class="stat-atk">⚔️${card.power}</span><span class="stat-hp">❤️${card.health}</span></div>
+                    <div class="card-effect">${card.effect ? card.effect.description : ''}</div>
+                `;
+                el.onclick = () => this.selectCard(idx);
+                el.ondblclick = (e) => {
+                    e.stopPropagation();
+                    this.showCardDetails(card);
+                };
+                handDiv.appendChild(el);
+            });
+        }
+
+        // Отрисовка поля
+        ['left', 'right'].forEach(row => {
+            ['my', 'enemy'].forEach(who => {
+                const board = who === 'my' ? this.state.myBoard : this.state.enemyBoard;
+                const containerId = `${who}-${row}`;
+                const container = document.getElementById(containerId);
+                if (!container) return;
+                
+                const slots = container.querySelectorAll('.slot');
+                slots.forEach((slot, idx) => {
+                    slot.innerHTML = '';
+                    const card = board[row][idx];
+                    if (card) {
+                        const el = document.createElement('div');
+                        el.className = 'card on-board';
+                        el.style.background = who === 'my' ? 'rgba(52, 152, 219, 0.2)' : 'rgba(231, 76, 60, 0.2)';
+                        el.innerHTML = `
+                            <div class="card-name">${card.name}</div>
+                            <div class="card-stats"><span class="stat-atk">⚔️${card.currentPower}</span><span class="stat-hp">❤️${card.currentHp}</span></div>
+                        `;
+                        slot.appendChild(el);
+                    }
+                });
+            });
+        });
+        
+        // Кнопка паса
+        const passBtn = document.getElementById('pass-btn');
+        if (this.state.turn !== 'my') {
+            passBtn.classList.add('disabled');
+            passBtn.innerText = "Ход противника...";
+        } else {
+            passBtn.classList.remove('disabled');
+            passBtn.innerText = "ПАСС";
+        }
+    }
+
+    showModal(html) {
+        document.getElementById('modal-content').innerHTML = html;
+        document.getElementById('modal-overlay').style.display = 'flex';
+    }
+    
+    closeModal() {
+        document.getElementById('modal-overlay').style.display = 'none';
+    }
+
+    showCardDetails(card) {
+        const html = `
+            <div class="modal-title">${card.name}</div>
+            <div class="info-text">
+                <b>Фракция:</b> ${card.type}<br>
+                <b>Влияние:</b> ${card.influence}<br>
+                <b>Атака:</b> ${card.power} | <b>Здоровье:</b> ${card.health}<br>
+                <b>Ряд:</b> ${card.row === 'any' ? 'Любой' : (card.row === 'left' ? 'Левый' : 'Правый')}<br>
+                <hr style="border-color:#555; margin:5px 0;">
+                <b>Эффект:</b><br>${card.effect ? card.effect.description : 'Нет'}
+            </div>
+            <button class="close-modal" onclick="game.closeModal()">Закрыть</button>
+        `;
+        this.showModal(html);
+    }
+
+    showLeaderInfo(who) {
+        const leader = who === 'my' ? this.leaders.my : this.leaders.enemy;
+        const html = `
+            <div class="modal-title">${leader.name}</div>
+            <div class="info-text">${leader.effect}</div>
+            <button class="close-modal" onclick="game.closeModal()">Закрыть</button>
+        `;
+        this.showModal(html);
+    }
+
+    activateLeader(who) {
+        if (this.state.turn !== 'my' && who === 'my') return;
+        const leader = who === 'my' ? this.leaders.my : this.leaders.enemy;
+        
+        if (leader.used) {
+            this.showToast("Умение лидера уже использовано в этом раунде!");
+            return;
+        }
+        
+        // Логика активации
+        leader.used = true;
+        this.showToast(`Лидер ${who === 'my' ? 'активирован!' : 'применил умение!'}`);
+        
+        if (who === 'my') {
+            // Бафф левого ряда
+            this.state.myBoard.left.forEach(c => { if(c) c.currentPower += 2; });
+            this.calculateScore();
+            this.updateUI();
+        } else {
+            // Урон случайной
+            const all = [...this.state.myBoard.left, ...this.state.myBoard.right].filter(c=>c!==null);
+            if(all.length > 0) {
+                const t = all[Math.floor(Math.random()*all.length)];
+                t.currentHp -= 2;
+                if(t.currentHp <= 0) this.handleDeath(t, 'my');
+                this.updateUI();
+            }
+        }
+    }
+
+    showList(type) {
+        let list = [];
+        let title = "";
+        if (type === 'my-deck') { list = this.state.myDeck; title = "Ваша колода"; }
+        if (type === 'my-discard') { list = this.state.myDiscard; title = "Ваш отбой"; }
+        if (type === 'enemy-deck') { list = this.state.enemyDeck; title = "Колода врага"; }
+        if (type === 'enemy-discard') { list = this.state.enemyDiscard; title = "Отбой врага"; }
+        if (type === 'enemy-hand') { list = this.state.enemyHand; title = "Рука врага (Читы!)"; } // Для отладки
+        
+        const items = list.map(c => `<div class="list-item">${c.name}</div>`).join('') || "<div style='padding:5px'>Пусто</div>";
+        
+        const html = `
+            <div class="modal-title">${title} (${list.length})</div>
+            <div class="list-preview">${items}</div>
+            <button class="close-modal" onclick="game.closeModal()">Закрыть</button>
+        `;
+        this.showModal(html);
+    }
+
+    showToast(msg) {
+        const t = document.getElementById('toast');
+        t.innerText = msg;
+        t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 2000);
+    }
+}
+
+// Запуск игры
+const game = new GameEngine();
+</script>
+</body>
+</html>
