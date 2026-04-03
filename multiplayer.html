@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Онлайн</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="https://cdn.socket.io/4.6.0/socket.io.min.js"></script>
+  <style>
+    body { background: #1a1a2e; color: white; font-family: sans-serif; padding: 20px; text-align: center; }
+    .box { background: rgba(255,255,255,0.05); padding: 20px; border-radius: 15px; margin: 10px auto; max-width: 400px; }
+    .btn { width: 100%; padding: 15px; margin: 8px 0; border: none; border-radius: 10px; font-size: 16px; font-weight: bold; color: white; cursor: pointer; }
+    .btn-green { background: #2ecc71; } .btn-blue { background: #3498db; } .btn-red { background: #e74c3c; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    input { width: 100%; padding: 15px; margin: 10px 0; border-radius: 10px; border: 1px solid #555; background: #333; color: white; font-size: 20px; text-align: center; letter-spacing: 5px; text-transform: uppercase; }
+    .hidden { display: none; }
+    .friend-item { display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.1); padding: 10px; margin: 5px 0; border-radius: 8px; }
+  </style>
+</head>
+<body>
+  <div class="box" id="menu">
+    <h1>🌐 Онлайн</h1>
+    <button class="btn btn-green" id="btnMatch" onclick="findMatch()">🔍 Подбор игроков</button>
+    <button class="btn btn-blue" id="btnRoom" onclick="createRoom()">🏠 Создать комнату</button>
+    <button class="btn btn-blue" onclick="showJoin()">🚪 Войти по коду</button>
+    <button class="btn btn-blue" onclick="showFriends()">👥 Друзья</button>
+    <button class="btn btn-red" onclick="location.href='index.html'">❌ Назад</button>
+  </div>
+
+  <div class="box hidden" id="searchBox">
+    <h1>🔍 Поиск...</h1>
+    <div style="margin: 30px auto; width: 50px; height: 50px; border: 5px solid #333; border-top: 5px solid #2ecc71; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+    <style>@keyframes spin { 100% { transform: rotate(360deg); } }</style>
+    <button class="btn btn-red" onclick="cancelMatch()">Отмена</button>
+  </div>
+
+  <div class="box hidden" id="roomBox">
+    <h1>🏠 Комната</h1>
+    <div style="font-size: 32px; letter-spacing: 8px; margin: 20px 0; font-weight: bold; color: #f1c40f;" id="roomCode">----</div>
+    <button class="btn btn-green" onclick="copyCode()">📋 Копировать</button>
+    <button class="btn btn-red" onclick="location.href='index.html'">Выйти</button>
+  </div>
+
+  <div class="box hidden" id="joinBox">
+    <h1>🚪 Вход</h1>
+    <input type="text" id="codeIn" placeholder="ABCD" maxlength="4">
+    <button class="btn btn-green" onclick="joinRoom()">Войти</button>
+    <button class="btn btn-red" onclick="showMenu()">Назад</button>
+  </div>
+
+  <div class="box hidden" id="friendsBox">
+    <h1>👥 Друзья</h1>
+    <input type="text" id="friendId" placeholder="ID друга">
+    <button class="btn btn-green" onclick="addFriend()">➕ Добавить</button>
+    <div id="friendList"></div>
+    <button class="btn btn-red" onclick="showMenu()">Назад</button>
+  </div>
+
+  <script>
+    const socket = io('http://193.148.59.127:3000');
+    const tg = window.Telegram.WebApp; tg.expand();
+    let myId = tg.initDataUnsafe?.user?.id || 'guest_' + Math.random();
+    let myDeck = JSON.parse(localStorage.getItem('selectedDeck') || '[]');
+    let friends = JSON.parse(localStorage.getItem('friends') || '[]');
+
+    socket.emit('register', { userId: myId, username: tg.initDataUnsafe?.user?.first_name || 'Player' });
+    document.getElementById('btnRoom').disabled = myDeck.length === 0;
+
+    function show(id) { document.querySelectorAll('.box').forEach(b=>b.classList.add('hidden')); document.getElementById(id).classList.remove('hidden'); }
+    function showMenu() { show('menu'); }
+    function showJoin() { show('joinBox'); }
+    function showFriends() { renderFriends(); show('friendsBox'); }
+
+    function findMatch() {
+      show('searchBox');
+      socket.emit('find_match', { deck: myDeck });
+    }
+    function cancelMatch() { socket.emit('cancel_search'); showMenu(); }
+    
+    socket.on('matchmaking_status', d => { if(d.status==='cancelled') showMenu(); });
+    socket.on('match_found', d => { localStorage.setItem('roomId', d.roomId); location.href='battle-online.html'; });
+
+    function createRoom() {
+      socket.emit('create_room', { deck: myDeck });
+    }
+    socket.on('room_created', d => { document.getElementById('roomCode').textContent = d.roomCode; show('roomBox'); });
+    function copyCode() { navigator.clipboard.writeText(document.getElementById('roomCode').textContent); tg.showAlert('Скопировано!'); }
+
+    function joinRoom() {
+      const code = document.getElementById('codeIn').value.trim().toUpperCase();
+      if(code.length<4) return;
+      socket.emit('join_room', { roomCode: code, deck: myDeck });
+    }
+    socket.on('game_start', () => location.href='battle-online.html');
+
+    function addFriend() {
+      const id = document.getElementById('friendId').value.trim();
+      if(id && !friends.includes(id)) {
+        friends.push(id); localStorage.setItem('friends', JSON.stringify(friends));
+        renderFriends(); document.getElementById('friendId').value='';
+      }
+    }
+    function renderFriends() {
+      const list = document.getElementById('friendList'); list.innerHTML='';
+      friends.forEach(f => {
+        const div = document.createElement('div'); div.className='friend-item';
+        div.innerHTML = `<span>🆔 ${f}</span><button class="btn btn-green" style="width:auto; padding:5px 10px;" onclick="inviteFriend('${f}')">Пригласить</button>`;
+        list.appendChild(div);
+      });
+    }
+    function inviteFriend(id) {
+      socket.emit('invite_friend', { friendId: id, myDeck: myDeck, myId: myId });
+      tg.showAlert('Приглашение отправлено!');
+    }
+  </script>
+</body>
+</html>

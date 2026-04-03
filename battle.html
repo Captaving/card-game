@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Битва с Ботом</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="config.js"></script>
+  <style>
+    * { box-sizing: border-box; user-select: none; }
+    body { background: #1a1a2e; color: white; font-family: sans-serif; padding: 10px; padding-bottom: 110px; }
+    .top { display: flex; justify-content: space-between; padding: 10px; background: rgba(255,255,255,0.1); border-radius: 10px; margin-bottom: 10px; }
+    .coins { display: flex; gap: 4px; }
+    .coin { width: 18px; height: 18px; background: gold; border-radius: 50%; border: 2px solid orange; opacity: 0.3; display: flex; align-items: center; justify-content: center; font-size: 10px; color: black; font-weight: bold; }
+    .coin.active { opacity: 1; }
+    .field { display: flex; justify-content: center; gap: 15px; margin-bottom: 10px; }
+    .column { display: flex; flex-direction: column; gap: 5px; }
+    .slot { width: 80px; height: 85px; border: 1px dashed rgba(255,255,255,0.2); border-radius: 6px; display: flex; align-items: center; justify-content: center; }
+    .card { width: 76px; height: 81px; background: #2c3e50; border-radius: 5px; border: 2px solid #555; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 10px; cursor: pointer; }
+    .card .power { font-size: 24px; font-weight: 800; }
+    .card .name { font-size: 9px; text-align: center; line-height: 1.1; }
+    .card .type { position: absolute; top: 2px; right: 2px; font-size: 8px; background: rgba(0,0,0,0.5); padding: 1px 3px; border-radius: 3px; }
+    .hand { position: fixed; bottom: 0; left: 0; right: 0; height: 100px; background: rgba(0,0,0,0.9); display: flex; overflow-x: auto; padding: 10px; gap: 8px; align-items: center; }
+    .hand .card { flex-shrink: 0; width: 65px; height: 85px; border: 2px solid white; }
+    .hand .card.selected { border-color: #f1c40f; transform: translateY(-8px); }
+    .controls { position: fixed; bottom: 105px; right: 10px; }
+    .btn-pass { padding: 10px 20px; background: #e74c3c; border: none; border-radius: 20px; color: white; font-weight: bold; }
+    .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 2000; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
+    .mulligan-list { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin: 20px 0; }
+    .btn-start { padding: 15px 40px; background: #2ecc71; border: none; border-radius: 30px; color: white; font-size: 18px; font-weight: bold; }
+    .toast { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.8); padding: 15px; border-radius: 10px; display: none; z-index: 3000; }
+  </style>
+</head>
+<body>
+  <div class="top">
+    <div>
+      <div style="font-size:12px; color:#aaa;">БОТ</div>
+      <div class="coins" id="botCoins"><div class="coin">1</div><div class="coin">2</div></div>
+      <div style="font-size:20px; font-weight:bold;" id="botScore">0</div>
+    </div>
+    <div style="text-align:center;"><div style="font-size:14px; color:#f1c40f;" id="roundDisplay">Раунд 1</div></div>
+    <div style="text-align:right;">
+      <div style="font-size:12px; color:#aaa;">ВЫ</div>
+      <div class="coins" id="myCoins"><div class="coin">1</div><div class="coin">2</div></div>
+      <div style="font-size:20px; font-weight:bold;" id="myScore">0</div>
+    </div>
+  </div>
+
+  <div class="field">
+    <div class="column" id="botLeft"></div>
+    <div class="column" id="botRight"></div>
+  </div>
+  <div style="height:15px;"></div>
+  <div class="field">
+    <div class="column" id="myLeft"></div>
+    <div class="column" id="myRight"></div>
+  </div>
+
+  <div class="controls"><button class="btn-pass" onclick="passTurn()">PASS</button></div>
+  <div class="hand" id="hand"></div>
+
+  <div class="overlay" id="mulliganOverlay">
+    <h2>Муллиган</h2>
+    <p style="color:#aaa;">Выберите до 3 карт для замены</p>
+    <div class="mulligan-list" id="mulliganList"></div>
+    <button class="btn-start" onclick="endMulligan()">НАЧАТЬ БОЙ</button>
+  </div>
+  <div class="toast" id="toast"></div>
+
+<script>
+  let state = {
+    faction: localStorage.getItem('selectedFaction') || 'knights',
+    deck: [], hand: [],
+    myField: { left: [], right: [] },
+    botField: { left: [], right: [] },
+    botHand: [],
+    coins: { my: 0, bot: 0 },
+    round: 1, turn: 'player', gameOver: false
+  };
+
+  window.onload = () => {
+    loadDeck();
+    drawCards(10);
+    showMulligan();
+    initBot();
+  };
+
+  function loadDeck() {
+    const saved = localStorage.getItem(`deck_${state.faction}`);
+    if (saved) {
+      state.deck = JSON.parse(saved).map(id => {
+        for(let f in FACTIONS) { const c = FACTIONS[f].cards.find(x => x.id === id); if(c) return {...c, cur: c.power}; } return null;
+      }).filter(c => c);
+    } else {
+      state.deck = FACTIONS[state.faction].cards.slice(0, 10).map(c => ({...c, cur: c.power}));
+    }
+    shuffle(state.deck);
+  }
+
+  function drawCards(n) { for(let i=0; i<n; i++) if(state.deck.length>0 && state.hand.length<10) state.hand.push(state.deck.pop()); }
+
+  function showMulligan() {
+    const list = document.getElementById('mulliganList');
+    list.innerHTML = '';
+    state.hand.forEach((c, i) => {
+      const el = document.createElement('div');
+      el.className = 'card';
+      el.innerHTML = `<div class="power">${c.cur}</div><div class="name">${c.name}</div>`;
+      el.onclick = () => { el.classList.toggle('selected'); el.dataset.sel = el.classList.contains('selected'); };
+      el.dataset.idx = i;
+      list.appendChild(el);
+    });
+  }
+
+  function endMulligan() {
+    const sel = Array.from(document.querySelectorAll('#mulliganList .card.selected')).map(e => parseInt(e.dataset.idx)).sort((a,b)=>b-a);
+    sel.forEach(idx => {
+      state.hand.splice(idx, 1);
+      if(state.deck.length > 0) state.hand.push(state.deck.pop());
+    });
+    document.getElementById('mulliganOverlay').style.display = 'none';
+    render();
+    showToast("Ваш ход!");
+  }
+
+  function initBot() {
+    const pool = FACTIONS[state.faction].cards;
+    for(let i=0; i<10; i++) state.botHand.push({...pool[Math.floor(Math.random()*pool.length)], cur: pool[0].power});
+  }
+
+  function playCard(idx, col) {
+    if(state.turn !== 'player' || state.gameOver) return;
+    const card = state.hand[idx];
+    if(card.row !== 'any' && card.row !== col) { showToast(`Только для ${card.row==='left'?'левого':'правого'} ряда!`); return; }
+    if(state.myField[col].length >= 2) { showToast("Ряд заполнен!"); return; }
+
+    state.myField[col].push(card);
+    state.hand.splice(idx, 1);
+    applyEffect(card, 'me', col);
+    checkDeaths();
+    render();
+    state.turn = 'bot';
+    render();
+    setTimeout(botTurn, 1200);
+  }
+
+  function botTurn() {
+    if(state.gameOver) return;
+    if(state.botHand.length > 0) {
+      const valid = state.botHand.filter(c => (c.row==='any' || c.row==='left') && state.botField.left.length<2 || (c.row==='any' || c.row==='right') && state.botField.right.length<2);
+      if(valid.length > 0) {
+        const c = valid[0];
+        const hIdx = state.botHand.indexOf(c);
+        const r = (c.row==='left' || (c.row==='any' && state.botField.left.length < state.botField.right.length)) ? 'left' : 'right';
+        state.botField[r].push(c);
+        state.botHand.splice(hIdx, 1);
+        applyEffect(c, 'bot', r);
+      }
+    }
+    state.turn = 'player';
+    render();
+    if(state.hand.length===0 && state.botHand.length===0) setTimeout(endRound, 800);
+  }
+
+  function passTurn() {
+    if(state.turn!=='player') return;
+    state.turn = 'bot'; render();
+    setTimeout(botTurn, 800);
+  }
+
+  function applyEffect(card, who, col) {
+    if(!card.effect) return;
+    if(card.effect.action === 'damage') {
+      const tgt = who==='me' ? state.botField : state.myField;
+      let t = tgt.left.find(x=>x.cur>0) || tgt.right.find(x=>x.cur>0);
+      if(t) { t.cur -= card.effect.value; checkDeaths(); showToast(`💥 Урон ${card.effect.value}!`); }
+    }
+    if(card.effect.action === 'buff') {
+      const src = who==='me' ? state.myField : state.botField;
+      src[col].forEach(x => { if(x.id!==card.id) x.cur += card.effect.value; });
+      showToast(`💪 Бафф +${card.effect.value}!`);
+    }
+  }
+
+  function checkDeaths() {
+    ['left','right'].forEach(r => {
+      state.myField[r] = state.myField[r].filter(c => c.cur > 0);
+      state.botField[r] = state.botField[r].filter(c => c.cur > 0);
+    });
+  }
+
+  function endRound() {
+    let ms=0, bs=0;
+    ['left','right'].forEach(r => { state.myField[r].forEach(c=>ms+=c.cur); state.botField[r].forEach(c=>bs+=c.cur); });
+    document.getElementById('myScore').textContent = ms;
+    document.getElementById('botScore').textContent = bs;
+    
+    if(ms>bs) { state.coins.my++; showToast("🏆 Раунд ваш!"); }
+    else if(bs>ms) { state.coins.bot++; showToast("💀 Раунд бота!"); }
+    else showToast("🤝 Ничья!");
+    
+    updateCoins();
+    if(state.coins.my>=2 || state.coins.bot>=2) {
+      setTimeout(()=>alert(state.coins.my>=2?"ПОБЕДА В МАТЧЕ!":"ПОРАЖЕНИЕ!"),500);
+      state.gameOver=true; return;
+    }
+    state.round++; document.getElementById('roundDisplay').textContent=`Раунд ${state.round}`;
+    state.myField={left:[],right:[]}; state.botField={left:[],right:[]};
+    drawCards(3); state.turn='player'; state.myScore=0; state.botScore=0;
+    document.getElementById('myScore').textContent=0; document.getElementById('botScore').textContent=0;
+    render();
+  }
+
+  function render() {
+    renderCol('myLeft', state.myField.left); renderCol('myRight', state.myField.right);
+    renderCol('botLeft', state.botField.left); renderCol('botRight', state.botField.right);
+    const h = document.getElementById('hand'); h.innerHTML='';
+    state.hand.forEach((c,i)=>{
+      const el = document.createElement('div'); el.className='card';
+      el.innerHTML=`<div class="type">${c.type}</div><div class="power">${c.cur}</div><div class="name">${c.name}</div>`;
+      el.onclick = () => playCard(i, 'left'); // Упрощено: всегда влево, если влезет
+      h.appendChild(el);
+    });
+  }
+  function renderCol(id, cards) {
+    const el = document.getElementById(id); el.innerHTML='';
+    for(let i=0;i<2;i++){
+      const s = document.createElement('div'); s.className='slot';
+      if(cards[i]){
+        const c = document.createElement('div'); c.className='card';
+        c.innerHTML=`<div class="type">${cards[i].type}</div><div class="power">${cards[i].cur}</div><div class="name">${cards[i].name}</div>`;
+        s.appendChild(c);
+      }
+      el.appendChild(s);
+    }
+  }
+  function updateCoins() {
+    document.querySelectorAll('#myCoins .coin').forEach((e,i)=>e.classList.toggle('active',i<state.coins.my));
+    document.querySelectorAll('#botCoins .coin').forEach((e,i)=>e.classList.toggle('active',i<state.coins.bot));
+  }
+  function showToast(m){ const t=document.getElementById('toast'); t.textContent=m; t.style.display='block'; setTimeout(()=>t.style.display='none',1500); }
+  function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } }
+</script>
+</body>
+</html>
