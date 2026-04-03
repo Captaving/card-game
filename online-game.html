@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Онлайн Игра - Выбор колоды</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="config.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: sans-serif; background: #1a1a2e; color: white; min-height: 100vh; padding: 20px; }
+    h1 { text-align: center; margin-bottom: 20px; }
+    .deck-item {
+      background: rgba(255,255,255,0.1);
+      padding: 15px;
+      margin-bottom: 10px;
+      border-radius: 10px;
+      cursor: pointer;
+      border: 2px solid transparent;
+    }
+    .deck-item.selected { border-color: #2ecc71; background: rgba(46, 204, 113, 0.2); }
+    .btn-container { position: fixed; bottom: 20px; left: 0; right: 0; padding: 0 20px; }
+    .btn {
+      width: 100%; padding: 15px; border: none; border-radius: 10px;
+      font-size: 16px; font-weight: bold; cursor: pointer;
+      background: #2ecc71; color: white;
+    }
+    .btn:disabled { background: #555; }
+    .back-btn { background: #e74c3c; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <h1>⚔️ Выберите колоду</h1>
+  <div id="deckList"></div>
+  
+  <div class="btn-container">
+    <button class="btn" id="startBtn" disabled onclick="startOnline()">▶️ Далее</button>
+    <button class="btn back-btn" onclick="history.back()">← Назад</button>
+  </div>
+
+  <script>
+    let selectedDeckId = null;
+    let selectedDeckData = null;
+
+    function renderDecks() {
+      const faction = localStorage.getItem('selectedFaction') || 'knights';
+      const list = document.getElementById('deckList');
+      list.innerHTML = '';
+      
+      // 1. Текущая активная колода
+      const currentDeckStr = localStorage.getItem(`deck_${faction}`);
+      if (currentDeckStr) {
+        const cards = JSON.parse(currentDeckStr);
+        const inf = cards.reduce((a, b) => a + (getCardById(b)?.influence || 0), 0);
+        
+        const div = document.createElement('div');
+        div.className = 'deck-item';
+        div.innerHTML = `<h3>🃏 Текущая колода</h3><p>${cards.length}/25 карт | 💫 ${inf} влияния</p>`;
+        div.onclick = () => selectDeck(div, 'current', cards);
+        list.appendChild(div);
+      }
+
+      // 2. Сохраненные слоты
+      for(let i=1; i<=5; i++) {
+        const saved = localStorage.getItem(`deck_${faction}_slot_${i}`);
+        if(saved) {
+           const cards = JSON.parse(saved);
+           const inf = cards.reduce((a, b) => a + (getCardById(b)?.influence || 0), 0);
+           const div = document.createElement('div');
+           div.className = 'deck-item';
+           div.innerHTML = `<h3>📂 Сохраненная колода ${i}</h3><p>${cards.length}/25 карт | 💫 ${inf} влияния</p>`;
+           div.onclick = () => selectDeck(div, `slot_${i}`, cards);
+           list.appendChild(div);
+        }
+      }
+      
+      if(list.innerHTML === '') {
+        list.innerHTML = '<p style="text-align:center;color:#888;">Нет колод. Сначала соберите одну в конструкторе!</p>';
+      }
+    }
+
+    function selectDeck(el, type, cards) {
+      document.querySelectorAll('.deck-item').forEach(d => d.classList.remove('selected'));
+      el.classList.add('selected');
+      selectedDeckId = type;
+      selectedDeckData = cards;
+      document.getElementById('startBtn').disabled = false;
+    }
+
+    function startOnline() {
+      localStorage.setItem('selectedDeck', JSON.stringify(selectedDeckData));
+      window.location.href = 'multiplayer.html';
+    }
+
+    function getCardById(id) {
+      // Быстрый поиск по всем фракциям
+      for (const f in FACTIONS) {
+        const found = FACTIONS[f].cards.find(c => c.id === id);
+        if(found) return found;
+      }
+      return { influence: 0 };
+    }
+
+    renderDecks();
+  </script>
+</body>
+</html>

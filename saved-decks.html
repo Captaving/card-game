@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Мои колоды</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="config.js"></script>
+  <style>
+    body { background: #1a1a2e; color: white; font-family: sans-serif; padding: 20px; }
+    .deck { background: rgba(255,255,255,0.1); padding: 15px; margin-bottom: 10px; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; }
+    .btn { padding: 8px 15px; border: none; border-radius: 5px; color: white; font-weight: bold; cursor: pointer; }
+    .btn-edit { background: #3498db; }
+    .btn-del { background: #e74c3c; }
+  </style>
+</head>
+<body>
+  <h1>📁 Мои колоды</h1>
+  <div id="list"></div>
+  <button onclick="location.href='deckbuilder.html'" style="margin-top:20px; width:100%; padding:15px; background:#2ecc71; border:none; border-radius:10px; color:white; font-weight:bold;">+ Создать новую</button>
+  <button onclick="location.href='index.html'" style="margin-top:10px; width:100%; padding:15px; background:#555; border:none; border-radius:10px; color:white; font-weight:bold;">← Назад</button>
+
+  <script>
+    const faction = localStorage.getItem('selectedFaction') || 'knights';
+    const list = document.getElementById('list');
+
+    // Загрузка всех слотов
+    for(let i=0; i<=5; i++) {
+      const key = i === 0 ? `deck_${faction}` : `deck_${faction}_slot_${i}`;
+      const data = localStorage.getItem(key);
+      if(data) {
+        const cards = JSON.parse(data);
+        const inf = cards.reduce((a, b) => {
+          // Поиск влияния
+          for(let f in FACTIONS) {
+            const c = FACTIONS[f].cards.find(x => x.id === b);
+            if(c) return a + c.influence;
+          }
+          return a;
+        }, 0);
+
+        const div = document.createElement('div');
+        div.className = 'deck';
+        div.innerHTML = `
+          <div>
+            <strong>${i === 0 ? 'Активная колода' : 'Колода ' + i}</strong><br>
+            <small>${cards.length} карт | 💫 ${inf} влияния</small>
+          </div>
+          <div>
+            <button class="btn btn-edit" onclick="location.href='deckbuilder.html'">✏️</button>
+          </div>
+        `;
+        list.appendChild(div);
+      }
+    }
+  </script>
+</body>
+</html>

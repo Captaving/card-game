@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Мультиплеер</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="https://cdn.socket.io/4.6.0/socket.io.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: sans-serif; background: #1a1a2e; color: white; min-height: 100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; padding: 20px; }
+    .box { background: rgba(255,255,255,0.05); padding: 30px; border-radius: 15px; width: 100%; max-width: 400px; text-align: center; }
+    .btn { width: 100%; padding: 15px; margin: 10px 0; border: none; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; color: white; }
+    .btn-green { background: #2ecc71; }
+    .btn-blue { background: #3498db; }
+    .btn-red { background: #e74c3c; }
+    input { width: 100%; padding: 15px; margin: 10px 0; border-radius: 10px; border: 1px solid #555; background: #333; color: white; font-size: 20px; text-align: center; letter-spacing: 5px; text-transform: uppercase; }
+    .hidden { display: none; }
+    .code-display { font-size: 32px; letter-spacing: 8px; margin: 20px 0; font-weight: bold; color: #f1c40f; }
+  </style>
+</head>
+<body>
+  <!-- Меню -->
+  <div class="box" id="menuScreen">
+    <h1>🌐 Онлайн Игра</h1>
+    <br>
+    <button class="btn btn-green" onclick="findMatch()">🔍 Подбор игроков</button>
+    <button class="btn btn-blue" onclick="createRoom()">🏠 Создать комнату</button>
+    <button class="btn btn-blue" onclick="showJoinInput()">🚪 Войти по коду</button>
+    <button class="btn btn-red" onclick="location.href='index.html'">❌ Отмена</button>
+  </div>
+
+  <!-- Поиск -->
+  <div class="box hidden" id="searchScreen">
+    <h1>🔍 Поиск...</h1>
+    <div style="margin: 30px; width: 50px; height: 50px; border: 5px solid #333; border-top: 5px solid #2ecc71; border-radius: 50%; animation: spin 1s linear infinite; margin: 30px auto;"></div>
+    <style>@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }</style>
+    <button class="btn btn-red" onclick="cancelSearch()">Отмена</button>
+  </div>
+
+  <!-- Создание комнаты -->
+  <div class="box hidden" id="createScreen">
+    <h1>🏠 Комната создана</h1>
+    <p>Отправьте этот код другу:</p>
+    <div class="code-display" id="roomCodeDisplay">----</div>
+    <button class="btn btn-green" onclick="copyCode()">📋 Копировать</button>
+    <button class="btn btn-red" onclick="leaveRoom()">Выйти</button>
+  </div>
+
+  <!-- Ввод кода -->
+  <div class="box hidden" id="joinScreen">
+    <h1>🚪 Вход</h1>
+    <input type="text" id="codeInput" placeholder="ABCD" maxlength="4">
+    <button class="btn btn-green" onclick="joinRoom()">Войти</button>
+    <button class="btn btn-red" onclick="location.href='index.html'">Назад</button>
+  </div>
+
+  <script>
+    const socket = io('http://193.148.59.127:3000');
+    const tg = window.Telegram.WebApp;
+    tg.expand();
+    
+    // Регистрируем пользователя
+    socket.emit('register', {
+      userId: tg.initDataUnsafe?.user?.id || 'guest',
+      username: tg.initDataUnsafe?.user?.first_name || 'Guest'
+    });
+
+    let myDeck = null;
+
+    // Загружаем колоду, выбранную на прошлом экране
+    window.onload = () => {
+      const saved = localStorage.getItem('selectedDeck');
+      if(saved) myDeck = JSON.parse(saved);
+      else { alert('Ошибка: не выбрана колода!'); location.href='index.html'; }
+    };
+
+    // 1. Подбор игроков
+    function findMatch() {
+      showScreen('searchScreen');
+      socket.emit('find_match', { deck: myDeck });
+    }
+    
+    socket.on('matchmaking_status', (data) => {
+      if(data.status === 'cancelled') showScreen('menuScreen');
+    });
+
+    socket.on('match_found', (data) => {
+      // Переход к игре
+      localStorage.setItem('roomId', data.roomId);
+      window.location.href = 'battle-online.html';
+    });
+
+    function cancelSearch() {
+      socket.emit('cancel_search');
+    }
+
+    // 2. Создание комнаты
+    function createRoom() {
+      socket.emit('create_room', { deck: myDeck });
+    }
+
+    socket.on('room_created', (data) => {
+      document.getElementById('roomCodeDisplay').textContent = data.roomCode;
+      showScreen('createScreen');
+    });
+
+    function copyCode() {
+      const code = document.getElementById('roomCodeDisplay').textContent;
+      navigator.clipboard.writeText(code);
+      tg.showAlert('Код скопирован!');
+    }
+
+    // 3. Вход в комнату
+    function showJoinInput() { showScreen('joinScreen'); }
+    
+    function joinRoom() {
+      const code = document.getElementById('codeInput').value.trim().toUpperCase();
+      if(code.length < 4) return;
+      socket.emit('join_room', { roomCode: code, deck: myDeck });
+    }
+
+    socket.on('game_start', () => {
+      window.location.href = 'battle-online.html';
+    });
+
+    function showScreen(id) {
+      document.querySelectorAll('.box').forEach(b => b.classList.add('hidden'));
+      document.getElementById(id).classList.remove('hidden');
+    }
+  </script>
+</body>
+</html>
