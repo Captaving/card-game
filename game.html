@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Битва Карт</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://cdn.socket.io/4.6.0/socket.io.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --slot-bg: rgba(255,255,255,0.05);
+            --p1-color: #3498db;
+            --p2-color: #e74c3c;
+            --accent: #f1c40f;
+        }
+        body { margin: 0; padding: 0; background: var(--bg-color); color: white; font-family: -apple-system, BlinkMacSystemFont, sans-serif; overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
+        
+        /* --- LAYOUT --- */
+        .game-area { flex: 1; display: grid; grid-template-rows: 1fr 1.2fr 1fr; position: relative; }
+        
+        /* TOP (ENEMY) */
+        .top-zone { display: grid; grid-template-columns: 60px 1fr 60px; padding: 5px; align-items: start; gap: 5px; }
+        .leader-box { width: 50px; height: 50px; background: #333; border-radius: 50%; border: 2px solid var(--p2-color); display: flex; align-items: center; justify-content: center; font-size: 24px; position: relative; }
+        .coins-badge { position: absolute; top: -5px; right: -5px; background: var(--accent); color: black; border-radius: 50%; width: 20px; height: 20px; font-size: 12px; font-weight: bold; display: flex; align-items: center; justify-content: center; }
+        
+        .enemy-hand { display: flex; justify-content: center; gap: 2px; height: 60px; }
+        .card-back { width: 40px; height: 55px; background: linear-gradient(45deg, #444, #222); border: 1px solid #555; border-radius: 4px; }
+        
+        .enemy-decks { display: flex; flex-direction: column; gap: 5px; align-items: center; }
+        .deck-stat { width: 40px; height: 50px; background: rgba(255,255,255,0.1); border-radius: 4px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 10px; cursor: pointer; }
+        .deck-stat.discard { border: 1px dashed #777; }
+
+        /* BOARD */
+        .board-zone { display: flex; flex-direction: column; justify-content: center; gap: 5px; padding: 0 10px; }
+        .row-wrapper { display: flex; justify-content: center; gap: 10px; height: 110px; }
+        .lane { display: grid; grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(2, 1fr); gap: 4px; width: 140px; background: var(--slot-bg); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 4px; position: relative; }
+        .lane.enemy { border-color: rgba(231, 76, 60, 0.3); }
+        .lane.player { border-color: rgba(52, 152, 219, 0.3); }
+        .slot { background: rgba(0,0,0,0.2); border-radius: 3px; position: relative; }
+        .slot.highlight { box-shadow: inset 0 0 0 2px var(--accent); animation: pulse 1s infinite; }
+
+        /* CENTER INFO */
+        .center-controls { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 5px; z-index: 10; pointer-events: none; }
+        .score-board { background: rgba(0,0,0,0.8); padding: 5px 15px; border-radius: 15px; font-weight: bold; font-size: 16px; border: 1px solid #444; pointer-events: auto; }
+        .pass-btn { background: #e67e22; color: white; border: none; padding: 6px 15px; border-radius: 12px; font-weight: bold; font-size: 12px; pointer-events: auto; cursor: pointer; }
+        .pass-btn:disabled { background: #555; opacity: 0.5; }
+
+        /* BOTTOM (PLAYER) */
+        .bottom-zone { display: grid; grid-template-columns: 60px 1fr 60px; padding: 5px; align-items: end; gap: 5px; }
+        .player-hand-container { display: flex; justify-content: center; align-items: flex-end; height: 100px; overflow-x: auto; overflow-y: visible; padding-bottom: 5px; scrollbar-width: none; }
+        .player-hand-container::-webkit-scrollbar { display: none; }
+        
+        .my-decks { display: flex; flex-direction: column; gap: 5px; align-items: center; }
+
+        /* CARDS */
+        .card { width: 100%; height: 100%; background: #2c3e50; border-radius: 4px; border: 1px solid #555; font-size: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; cursor: pointer; transition: transform 0.1s; }
+        .card.in-hand { width: 50px; height: 70px; flex-shrink: 0; margin: 0 2px; border: 1px solid #fff; }
+        .card.on-board { border: none; background: transparent; }
+        .card-cost { position: absolute; top: -3px; left: -3px; background: #926eae; color: white; border-radius: 50%; width: 14px; height: 14px; font-size: 9px; display: flex; align-items: center; justify-content: center; border: 1px solid white; z-index: 2; }
+        .card-stats { display: flex; gap: 3px; font-weight: bold; font-size: 10px; }
+        .atk { color: #e74c3c; }
+        .hp { color: #2ecc71; }
+        .card-name { text-align: center; font-weight: 600; line-height: 1; margin-bottom: 2px; }
+
+        /* MODALS */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 100; display: none; align-items: center; justify-content: center; backdrop-filter: blur(3px); }
+        .modal-content { background: #2c3e50; padding: 20px; border-radius: 12px; width: 90%; max-width: 320px; text-align: center; border: 1px solid #555; }
+        .mulligan-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; margin: 15px 0; }
+        .mulligan-card { width: 40px; height: 55px; background: #34495e; border: 2px solid transparent; border-radius: 4px; cursor: pointer; }
+        .mulligan-card.selected { border-color: var(--accent); transform: scale(1.1); }
+        .btn-action { background: var(--p1-color); color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: bold; width: 100%; margin-top: 10px; cursor: pointer; }
+        .btn-cancel { background: #e74c3c; margin-top: 5px; }
+        
+        .row-select-btns { display: flex; gap: 10px; justify-content: center; margin-top: 15px; }
+        .r-btn { background: #34495e; border: 1px solid #555; color: white; padding: 10px; border-radius: 6px; cursor: pointer; flex: 1; }
+        .r-btn:hover { background: var(--p1-color); }
+
+        @keyframes pulse { 0% { opacity: 0.6; } 50% { opacity: 1; } 100% { opacity: 0.6; } }
+        .toast { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.8); padding: 10px 20px; border-radius: 20px; z-index: 200; pointer-events: none; opacity: 0; transition: opacity 0.3s; }
+        .toast.show { opacity: 1; }
+    </style>
+</head>
+<body>
+
+<div class="game-area">
+    <!-- ВЕРХ (ПРОТИВНИК) -->
+    <div class="top-zone">
+        <div class="leader-box" id="enemy-leader" ondblclick="game.showLeader('enemy')">🤖<div class="coins-badge" id="enemy-coins">0</div></div>
+        <div class="enemy-hand" id="enemy-hand-view"></div>
+        <div class="enemy-decks">
+            <div class="deck-stat" onclick="game.showList('enemy-deck')">📚<span id="enemy-deck-cnt">0</span></div>
+            <div class="deck-stat discard" onclick="game.showList('enemy-discard')">♻️<span id="enemy-discard-cnt">0</span></div>
+        </div>
+    </div>
+
+    <!-- ПОЛЕ -->
+    <div class="board-zone">
+        <!-- Ряды врага -->
+        <div class="row-wrapper">
+            <div class="lane enemy" id="enemy-left"></div>
+            <div class="lane enemy" id="enemy-right"></div>
+        </div>
+
+        <!-- Центр -->
+        <div class="center-controls">
+            <div class="score-board"><span style="color:var(--p1-color)" id="score-p1">0</span> : <span style="color:var(--p2-color)" id="score-p2">0</span> <div style="font-size:10px; font-weight:normal">Раунд <span id="round-num">1</span></div></div>
+            <button class="pass-btn" id="pass-btn" onclick="game.passTurn()">ПАСС</button>
+        </div>
+
+        <!-- Ряды игрока -->
+        <div class="row-wrapper">
+            <div class="lane player" id="player-left"></div>
+            <div class="lane player" id="player-right"></div>
+        </div>
+    </div>
+
+    <!-- НИЗ (ИГРОК) -->
+    <div class="bottom-zone">
+        <div class="leader-box" id="my-leader" style="border-color: var(--p1-color);" ondblclick="game.showLeader('my')" onclick="game.activateLeader('my')">🛡️<div class="coins-badge" id="my-coins">0</div></div>
+        
+        <div class="player-hand-container" id="player-hand-view"></div>
+        
+        <div class="my-decks">
+            <div class="deck-stat discard" onclick="game.showList('my-discard')">♻️<span id="my-discard-cnt">0</span></div>
+            <div class="deck-stat" onclick="game.showList('my-deck')">📚<span id="my-deck-cnt">0</span></div>
+        </div>
+    </div>
+</div>
+
+<!-- МОДАЛКИ -->
+<div class="modal-overlay" id="modal-overlay">
+    <div class="modal-content" id="modal-content"></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="config.js"></script>
+<script>
+class GameEngine {
+    constructor() {
+        this.tg = window.Telegram.WebApp;
+        this.tg.expand();
+        this.tg.ready();
+        
+        // Параметры URL
+        const params = new URLSearchParams(window.location.search);
+        this.isOnline = params.get('mode') === 'online';
+        this.roomId = params.get('room');
+        this.mySide = params.get('side') || 'p1'; // p1 или p2
+
+        // Состояние
+        this.state = {
+            round: 1, myCoins: 0, enemyCoins: 0,
+            myScore: 0, enemyScore: 0,
+            turn: 'my', gameOver: false,
+            myHand: [], myDeck: [], myDiscard: [],
+            myBoard: { left: [null,null,null,null], right: [null,null,null,null] },
+            enemyHand: [], enemyDeck: [], enemyDiscard: [],
+            enemyBoard: { left: [null,null,null,null], right: [null,null,null,null] },
+            selectedCardIdx: null,
+            mulliganCount: 0
+        };
+
+        this.socket = null;
+        this.leaders = {
+            my: { name: "Ваш Лидер", effect: "+2 силы левому ряду", used: false },
+            enemy: { name: "Враг", effect: "2 урона случайной карте", used: false }
+        };
+
+        this.init();
+    }
+
+    init() {
+        if (this.isOnline) {
+            this.connectSocket();
+        } else {
+            this.startBotGame();
+        }
+    }
+
+    connectSocket() {
+        this.socket = io('http://193.148.59.127:3000');
+        
+        this.socket.on('connect', () => {
+            console.log('Connected to game server');
+            this.socket.emit('join-game', { roomId: this.roomId, side: this.mySide });
+        });
+
+        this.socket.on('game-state', (state) => {
+            // Синхронизация состояния от сервера
+            // Упрощено: сервер должен слать полные данные
+            if(state.hand) this.state.myHand = state.hand;
+            if(state.board) {
+                if(this.mySide === 'p1') this.state.myBoard = state.board.p1;
+                else this.state.myBoard = state.board.p2;
+                
+                if(this.mySide === 'p1') this.state.enemyBoard = state.board.p2;
+                else this.state.enemyBoard = state.board.p1;
+            }
+            this.updateUI();
+        });
+
+        this.socket.on('opponent-move', (data) => {
+            // Противник походил
+            this.state.turn = 'my';
+            this.showToast("Ваш ход!");
+            this.updateUI();
+        });
+        
+        this.socket.on('game-over', (result) => {
+            alert(result === 'win' ? "ПОБЕДА!" : "ПОРАЖЕНИЕ");
+            window.location.href = 'index.html';
+        });
+    }
+
+    startBotGame() {
+        // Загрузка колоды
+        const saved = localStorage.getItem('tempMatchDeck');
+        let deckData = saved ? JSON.parse(saved) : FACTIONS.knights.cards.slice(0, 25);
+        
+        this.state.myDeck = deckData.map(c => ({...c, uid: Math.random()}));
+        this.state.enemyDeck = [...FACTIONS.cultists.cards].sort(()=>0.5-Math.random()).slice(0, 25).map(c => ({...c, uid: Math.random()}));
+        
+        this.shuffle(this.state.myDeck);
+        this.shuffle(this.state.enemyDeck);
+        
+        this.drawCards('my', 10);
+        this.drawCards('enemy', 10);
+        
+        this.startMulligan();
+    }
+
+    shuffle(arr) {
+        for(let i=arr.length-1; i>0; i--) {
+            const j = Math.floor(Math.random()*(i+1));
+            [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+    }
+
+    drawCards(who, count) {
+        const deck = who === 'my' ? this.state.myDeck : this.state.enemyDeck;
+        const hand = who === 'my' ? this.state.myHand : this.state.enemyHand;
+        for(let i=0; i<count; i++) {
+            if(deck.length > 0 && hand.length < 10) hand.push(deck.pop());
+        }
+    }
+
+    // --- МУЛЛИГАН ---
+    startMulligan() {
+        const modal = document.getElementById('modal-content');
+        modal.innerHTML = `
+            <h3>Замена карт</h3>
+            <p>Выберите до 3 карт для замены</p>
+            <div class="mulligan-grid" id="mulligan-grid"></div>
+            <div style="font-size:12px; margin-bottom:10px">Выбрано: <span id="mulligan-cnt">0</span>/3</div>
+            <button class="btn-action" onclick="game.finishMulligan()">Готово</button>
+        `;
+        document.getElementById('modal-overlay').style.display = 'flex';
+        this.renderMulliganGrid();
+    }
+
+    renderMulliganGrid() {
+        const grid = document.getElementById('mulligan-grid');
+        grid.innerHTML = '';
+        this.state.myHand.forEach((card, idx) => {
+            const el = document.createElement('div');
+            el.className = 'mulligan-card';
+            el.dataset.idx = idx;
+            el.onclick = () => this.toggleMulliganSelect(idx, el);
+            grid.appendChild(el);
+        });
+    }
+
+    toggleMulliganSelect(idx, el) {
+        if (el.classList.contains('selected')) {
+            el.classList.remove('selected');
+            this.state.mulliganCount--;
+        } else {
+            if (this.state.mulliganCount >= 3) return;
+            el.classList.add('selected');
+            this.state.mulliganCount++;
+        }
+        document.getElementById('mulligan-cnt').innerText = this.state.mulliganCount;
+    }
+
+    finishMulligan() {
+        const selectedEls = document.querySelectorAll('.mulligan-card.selected');
+        const indicesToReplace = Array.from(selectedEls).map(el => parseInt(el.dataset.idx)).sort((a,b) => b-a);
+        
+        indicesToReplace.forEach(idx => {
+            const card = this.state.myHand.splice(idx, 1)[0];
+            this.state.myDeck.unshift(card); // Возвращаем в низ колоды
+            this.shuffle(this.state.myDeck); // Тасуем немного
+        });
+        
+        this.drawCards('my', indicesToReplace.length);
+        document.getElementById('modal-overlay').style.display = 'none';
+        this.updateUI();
+        this.showToast("Игра началась!");
+    }
+
+    // --- ИГРОВОЙ ПРОЦЕСС ---
+    selectCard(idx) {
+        if (this.state.turn !== 'my' || this.state.gameOver) return;
+        const card = this.state.myHand[idx];
+        this.state.selectedCardIdx = idx;
+        
+        // Определение доступных рядов
+        let rows = [];
+        if (card.row === 'left' || card.row === 'any') rows.push('left');
+        if (card.row === 'right' || card.row === 'any') rows.push('right');
+        
+        // Фильтр занятых рядов (макс 4 карты)
+        rows = rows.filter(r => this.state.myBoard[r].filter(c=>c!==null).length < 4);
+        
+        if (rows.length === 0) {
+            this.showToast("Нет места!");
+            return;
+        }
+        
+        this.showRowSelector(rows, card);
+    }
+
+    showRowSelector(rows, card) {
+        const content = document.getElementById('modal-content');
+        const btns = rows.map(r => `<button class="r-btn" onclick="game.placeCard('${r}')">${r==='left'?'Левый ряд':'Правый ряд'}</button>`).join('');
+        
+        content.innerHTML = `
+            <div style="font-weight:bold; margin-bottom:10px">${card.name}</div>
+            <div style="font-size:11px; opacity:0.8; margin-bottom:10px">${card.effect?.description || ''}</div>
+            <div class="row-select-btns">${btns}</div>
+            <button class="btn-action btn-cancel" onclick="document.getElementById('modal-overlay').style.display='none'">Отмена</button>
+        `;
+        document.getElementById('modal-overlay').style.display = 'flex';
+    }
+
+    placeCard(row) {
+        const idx = this.state.selectedCardIdx;
+        const card = this.state.myHand.splice(idx, 1)[0];
+        const boardRow = this.state.myBoard[row];
+        const pos = boardRow.findIndex(c => c === null);
+        
+        if (pos !== -1) {
+            boardRow[pos] = { ...card, curHp: card.health, curPow: card.power };
+            this.triggerEffect(card, 'my');
+            this.state.selectedCardIdx = null;
+            document.getElementById('modal-overlay').style.display = 'none';
+            
+            if (this.isOnline) {
+                this.socket.emit('move', { roomId: this.roomId, action: 'play', row, card, pos });
+                this.endTurnOnline();
+            } else {
+                this.endTurnBot();
+            }
+        }
+    }
+
+    triggerEffect(card, who) {
+        if (!card.effect) return;
+        const eff = card.effect;
+        const targetBoard = who === 'my' ? this.state.enemyBoard : this.state.myBoard;
+        const allUnits = [...targetBoard.left, ...targetBoard.right].filter(c => c !== null);
+        
+        if (eff.action === 'damage' && allUnits.length > 0) {
+            const t = allUnits[Math.floor(Math.random()*allUnits.length)];
+            t.curHp -= eff.value;
+            this.showToast(`${card.name} нанес ${eff.value} урона!`);
+            if(t.curHp <= 0) this.killUnit(t, who==='my'?'enemy':'my');
+        }
+        // Другие эффекты можно добавить аналогично
+    }
+
+    killUnit(unit, owner) {
+        const board = owner === 'my' ? this.state.myBoard : this.state.enemyBoard;
+        const discard = owner === 'my' ? this.state.myDiscard : this.state.enemyDiscard;
+        ['left','right'].forEach(r => {
+            const idx = board[r].indexOf(unit);
+            if(idx !== -1) { board[r][idx] = null; discard.push(unit); }
+        });
+    }
+
+    endTurnBot() {
+        this.calcScore();
+        this.state.turn = 'enemy';
+        this.updateUI();
+        setTimeout(() => this.botMove(), 1500);
+    }
+
+    botMove() {
+        if(this.state.gameOver) return;
+        const hand = this.state.enemyHand;
+        if(hand.length > 0) {
+            const idx = Math.floor(Math.random()*hand.length);
+            const card = hand[idx];
+            const row = (card.row==='any') ? (Math.random()>0.5?'left':'right') : card.row;
+            if(this.state.enemyBoard[row].filter(c=>c!==null).length < 4) {
+                hand.splice(idx, 1);
+                const pos = this.state.enemyBoard[row].findIndex(c=>c===null);
+                this.state.enemyBoard[row][pos] = { ...card, curHp: card.health, curPow: card.power };
+                if(card.effect) this.triggerEffect(card, 'enemy');
+            }
+        }
+        this.state.turn = 'my';
+        this.calcScore();
+        this.checkRoundEnd();
+        this.updateUI();
+    }
+
+    endTurnOnline() {
+        this.state.turn = 'enemy'; // В онлайне ждем ответа
+        this.updateUI();
+    }
+
+    passTurn() {
+        if(this.state.turn !== 'my') return;
+        this.showToast("Вы пропустили ход");
+        if(this.isOnline) {
+            this.socket.emit('move', { roomId: this.roomId, action: 'pass' });
+            this.endTurnOnline();
+        } else {
+            this.endTurnBot();
+        }
+    }
+
+    calcScore() {
+        const sum = (b) => [...b.left, ...b.right].reduce((a,c)=>a+(c?c.curPow:0),0);
+        this.state.myScore = sum(this.state.myBoard);
+        this.state.enemyScore = sum(this.state.enemyBoard);
+    }
+
+    checkRoundEnd() {
+        if(this.state.myHand.length===0 && this.state.enemyHand.length===0) {
+            this.finishRound();
+        }
+    }
+
+    finishRound() {
+        let msg = "";
+        if(this.state.myScore > this.state.enemyScore) { this.state.myCoins++; msg="Победа в раунде!"; }
+        else if(this.state.enemyScore > this.state.myScore) { this.state.enemyCoins++; msg="Поражение в раунде"; }
+        else msg="Ничья";
+        
+        this.showToast(msg);
+        if(this.state.myCoins >= 2) return this.endGame(true);
+        if(this.state.enemyCoins >= 2) return this.endGame(false);
+        
+        if(this.state.round < 3) {
+            setTimeout(() => {
+                this.state.round++;
+                this.resetRound();
+                this.showToast(`Раунд ${this.state.round}`);
+            }, 2000);
+        } else {
+            this.endGame(this.state.myCoins > this.state.enemyCoins);
+        }
+    }
+
+    resetRound() {
+        [...this.state.myBoard.left, ...this.state.myBoard.right].forEach(c=>{if(c)this.state.myDiscard.push(c);});
+        [...this.state.enemyBoard.left, ...this.state.enemyBoard.right].forEach(c=>{if(c)this.state.enemyDiscard.push(c);});
+        this.state.myBoard = {left:[null,null,null,null], right:[null,null,null,null]};
+        this.state.enemyBoard = {left:[null,null,null,null], right:[null,null,null,null]};
+        this.drawCards('my', 3); this.drawCards('enemy', 3);
+        this.updateUI();
+    }
+
+    endGame(win) {
+        this.state.gameOver = true;
+        setTimeout(() => {
+            alert(win ? "🏆 МАТЧ ВЫИГРАН!" : "💀 МАТЧ ПРОИГРАН");
+            window.location.href = 'index.html';
+        }, 1000);
+    }
+
+    // --- UI ---
+    updateUI() {
+        document.getElementById('score-p1').innerText = this.state.myScore;
+        document.getElementById('score-p2').innerText = this.state.enemyScore;
+        document.getElementById('round-num').innerText = this.state.round;
+        document.getElementById('my-coins').innerText = this.state.myCoins;
+        document.getElementById('enemy-coins').innerText = this.state.enemyCoins;
+        
+        document.getElementById('my-deck-cnt').innerText = this.state.myDeck.length;
+        document.getElementById('my-discard-cnt').innerText = this.state.myDiscard.length;
+        document.getElementById('enemy-deck-cnt').innerText = this.state.enemyDeck.length;
+        document.getElementById('enemy-discard-cnt').innerText = this.state.enemyDiscard.length;
+        
+        // Рука врага (рубашки)
+        const eHand = document.getElementById('enemy-hand-view');
+        eHand.innerHTML = this.state.enemyHand.map(() => '<div class="card-back"></div>').join('');
+
+        // Рука игрока
+        const pHand = document.getElementById('player-hand-view');
+        pHand.innerHTML = '';
+        if(this.state.turn === 'my') {
+            this.state.myHand.forEach((c, i) => {
+                const el = document.createElement('div');
+                el.className = 'card in-hand';
+                el.innerHTML = `<div class="card-cost">${c.influence}</div><div class="card-name">${c.name}</div><div class="card-stats"><span class="atk">⚔️${c.power}</span><span class="hp">❤️${c.health}</span></div>`;
+                el.onclick = () => this.selectCard(i);
+                el.ondblclick = (e) => { e.stopPropagation(); this.showCardDetails(c); };
+                pHand.appendChild(el);
+            });
+        }
+
+        // Поля
+        ['left','right'].forEach(row => {
+            ['my','enemy'].forEach(who => {
+                const board = who==='my' ? this.state.myBoard : this.state.enemyBoard;
+                const container = document.getElementById(`${who}-${row}`);
+                if(!container) return;
+                container.innerHTML = '';
+                board[row].forEach((c, idx) => {
+                    const slot = document.createElement('div');
+                    slot.className = 'slot';
+                    if(c) {
+                        const cardEl = document.createElement('div');
+                        cardEl.className = 'card on-board';
+                        cardEl.style.background = who==='my' ? 'rgba(52,152,219,0.2)' : 'rgba(231,76,60,0.2)';
+                        cardEl.innerHTML = `<div class="card-name">${c.name}</div><div class="card-stats"><span class="atk">⚔️${c.curPow}</span><span class="hp">❤️${c.curHp}</span></div>`;
+                        slot.appendChild(cardEl);
+                    }
+                    container.appendChild(slot);
+                });
+            });
+        });
+
+        const passBtn = document.getElementById('pass-btn');
+        passBtn.disabled = this.state.turn !== 'my';
+        passBtn.innerText = this.state.turn === 'my' ? 'ПАСС' : 'Ход врага...';
+    }
+
+    showCardDetails(card) {
+        const html = `<h3>${card.name}</h3><p>${card.effect?.description||'Нет эффекта'}</p><button class="btn-action" onclick="document.getElementById('modal-overlay').style.display='none'">OK</button>`;
+        document.getElementById('modal-content').innerHTML = html;
+        document.getElementById('modal-overlay').style.display = 'flex';
+    }
+
+    showLeader(who) {
+        const l = who==='my' ? this.leaders.my : this.leaders.enemy;
+        const html = `<h3>${l.name}</h3><p>${l.effect}</p><button class="btn-action" onclick="document.getElementById('modal-overlay').style.display='none'">OK</button>`;
+        document.getElementById('modal-content').innerHTML = html;
+        document.getElementById('modal-overlay').style.display = 'flex';
+    }
+
+    activateLeader(who) {
+        if(who!=='my' || this.state.turn!=='my') return;
+        if(this.leaders.my.used) { this.showToast("Уже использовано!"); return; }
+        this.leaders.my.used = true;
+        this.state.myBoard.left.forEach(c=>{if(c)c.curPow+=2;});
+        this.calcScore(); this.updateUI();
+        this.showToast("Лидер активирован!");
+    }
+
+    showList(type) {
+        let list = [], title="";
+        if(type==='my-deck') { list=this.state.myDeck; title="Колода"; }
+        if(type==='my-discard') { list=this.state.myDiscard; title="Сброс"; }
+        if(type==='enemy-deck') { list=this.state.enemyDeck; title="Колода врага"; }
+        if(type==='enemy-discard') { list=this.state.enemyDiscard; title="Сброс врага"; }
+        
+        const items = list.map(c=>`<div>${c.name}</div>`).join('') || "Пусто";
+        const html = `<h3>${title} (${list.length})</h3><div style="max-height:200px;overflow:auto;text-align:left;font-size:12px">${items}</div><button class="btn-action" onclick="document.getElementById('modal-overlay').style.display='none'">Закрыть</button>`;
+        document.getElementById('modal-content').innerHTML = html;
+        document.getElementById('modal-overlay').style.display = 'flex';
+    }
+
+    showToast(msg) {
+        const t = document.getElementById('toast');
+        t.innerText = msg; t.classList.add('show');
+        setTimeout(()=>t.classList.remove('show'), 2000);
+    }
+}
+
+const game = new GameEngine();
+</script>
+</body>
+</html>
