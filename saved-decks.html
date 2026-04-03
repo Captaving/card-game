@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Сохраненные колоды</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        body { margin: 0; padding: 0; font-family: sans-serif; }
+        .container { padding: 20px; max-width: 600px; margin: 0 auto; }
+        h1 { text-align: center; margin-bottom: 20px; }
+        .deck-item {
+            background: rgba(255,255,255,0.08);
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .deck-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .deck-name { font-weight: bold; font-size: 18px; }
+        .deck-stats { font-size: 13px; opacity: 0.8; margin-bottom: 10px; }
+        .deck-actions { display: flex; gap: 10px; }
+        .btn { padding: 8px 16px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; flex: 1; }
+        .btn-use { background: #2ecc71; color: white; }
+        .btn-delete { background: #e74c3c; color: white; }
+        .btn-back { background: rgba(255,255,255,0.2); color: inherit; width: 100%; margin-top: 20px; padding: 12px; }
+        .empty-state { text-align: center; opacity: 0.6; margin-top: 50px; }
+        .tag { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-right: 5px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📂 Мои Колоды</h1>
+        <button onclick="window.location.href='deckbuilder.html'" class="btn btn-use" style="width:100%; margin-bottom: 20px;">➕ Создать новую</button>
+        
+        <div id="decks-list"></div>
+
+        <button onclick="window.location.href='index.html'" class="btn btn-back">⬅ Назад в меню</button>
+    </div>
+
+    <script src="config.js"></script>
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+
+        // Применение темы
+        document.body.style.backgroundColor = tg.themeParams.bg_color || '#1a1a1a';
+        document.body.style.color = tg.themeParams.text_color || '#ffffff';
+
+        function getFactionName(factionId) {
+            if (FACTIONS[factionId]) return FACTIONS[factionId].name;
+            return 'Смешанная';
+        }
+
+        function getFactionColor(factionId) {
+            if (FACTIONS[factionId]) return FACTIONS[factionId].color;
+            return '#95a5a6';
+        }
+
+        function loadDecks() {
+            const list = document.getElementById('decks-list');
+            list.innerHTML = '';
+            
+            const decks = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key.startsWith('deck_')) {
+                    const name = key.replace('deck_', '');
+                    const data = JSON.parse(localStorage.getItem(key));
+                    decks.push({ name, data, key });
+                }
+            }
+
+            const currentDeck = localStorage.getItem('myDeck');
+
+            if (decks.length === 0) {
+                list.innerHTML = '<div class="empty-state">Нет сохраненных колод.<br>Создайте первую в конструкторе!</div>';
+                return;
+            }
+
+            decks.forEach(deck => {
+                const isActive = JSON.stringify(deck.data) === currentDeck;
+                
+                // Расчет статистики
+                const totalInfluence = deck.data.reduce((sum, card) => sum + (card.influence || 0), 0);
+                const factionCounts = {};
+                deck.data.forEach(card => {
+                    // Определяем фракцию по префиксу ID
+                    let fId = 'unknown';
+                    if(card.id.includes('knights')) fId = 'knights';
+                    else if(card.id.includes('cultists')) fId = 'cultists';
+                    else if(card.id.includes('dryads')) fId = 'dryads';
+                    else if(card.id.includes('mages')) fId = 'mages';
+                    
+                    factionCounts[fId] = (factionCounts[fId] || 0) + 1;
+                });
+
+                let factionsHtml = '';
+                for (const [fId, count] of Object.entries(factionCounts)) {
+                    const color = getFactionColor(fId);
+                    factionsHtml += `<span class="tag" style="background:${color}; color:#fff">${count}</span>`;
+                }
+
+                const div = document.createElement('div');
+                div.className = 'deck-item';
+                div.innerHTML = `
+                    <div class="deck-header">
+                        <span class="deck-name">${deck.name}</span>
+                        ${isActive ? '<span style="color:#2ecc71; font-size:12px;">● Активна</span>' : ''}
+                    </div>
+                    <div class="deck-stats">
+                        Карт: ${deck.data.length} | Влияние: ${totalInfluence}/${GAME_CONFIG.maxInfluence}<br>
+                        <div style="margin-top:5px;">${factionsHtml}</div>
+                    </div>
+                    <div class="deck-actions">
+                        <button class="btn btn-use" onclick="useDeck('${deck.key}')">Играть</button>
+                        <button class="btn btn-delete" onclick="deleteDeck('${deck.key}')">Удалить</button>
+                    </div>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        function useDeck(key) {
+            const data = localStorage.getItem(key);
+            localStorage.setItem('myDeck', data);
+            tg.HapticFeedback.notificationOccurred('success');
+            tg.showAlert('Колода выбрана для игры!');
+            loadDecks();
+        }
+
+        function deleteDeck(key) {
+            tg.HapticFeedback.notificationOccurred('warning');
+            if(confirm('Вы уверены, что хотите удалить эту колоду?')) {
+                localStorage.removeItem(key);
+                loadDecks();
+            }
+        }
+
+        loadDecks();
+    </script>
+</body>
+</html>
