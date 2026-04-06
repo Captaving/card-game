@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Онлайн</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="https://cdn.socket.io/4.6.0/socket.io.min.js"></script>
+  <style>
+    body{background:#1a1a2e;color:#fff;font-family:sans-serif;padding:20px;text-align:center}
+    .box{background:rgba(255,255,255,0.05);padding:25px;border-radius:15px;margin:10px auto;max-width:400px}
+    .btn{width:100%;padding:16px;margin:10px 0;border:none;border-radius:12px;font-size:16px;font-weight:bold;color:#fff;cursor:pointer}
+    .btn-green{background:#2ecc71}.btn-blue{background:#3498db}.btn-red{background:#e74c3c}
+    .btn:disabled{opacity:0.5;cursor:not-allowed;background:#555}
+    input{width:100%;padding:15px;margin:10px 0;border-radius:10px;border:2px solid #555;background:#2c3e50;color:#fff;font-size:24px;text-align:center;letter-spacing:6px;text-transform:uppercase;font-weight:bold}
+    .hidden{display:none}
+    .code{font-size:36px;letter-spacing:10px;margin:20px 0;font-weight:bold;color:#f1c40f}
+    .spin{margin:30px auto;width:50px;height:50px;border:5px solid rgba(46,204,113,0.2);border-top:5px solid #2ecc71;border-radius:50%;animation:s 1s linear infinite}@keyframes s{100%{transform:rotate(360deg)}}
+    .toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.9);padding:12px 25px;border-radius:25px;font-size:14px;z-index:2000;opacity:0;transition:opacity.3s}.toast.on{opacity:1}
+  </style>
+</head>
+<body>
+  <div class="box" id="menu">
+    <h1>🌐 Онлайн</h1>
+    <button class="btn btn-green" id="btnM" onclick="find()">🔍 Подбор</button>
+    <button class="btn btn-blue" id="btnR" onclick="create()">🏠 Создать</button>
+    <button class="btn btn-blue" onclick="show('join')">🚪 Войти</button>
+    <button class="btn btn-red" onclick="location.href='index.html'">← Назад</button>
+  </div>
+  
+  <div class="box hidden" id="search">
+    <h1>🔍 Поиск...</h1>
+    <div class="spin"></div>
+    <p id="qPos" style="color:#3498db"></p>
+    <button class="btn btn-red" onclick="cancel()">Отмена</button>
+  </div>
+  
+  <div class="box hidden" id="room">
+    <h1>🏠 Комната</h1>
+    <div class="code" id="code">----</div>
+    <button class="btn btn-green" onclick="copy()">📋 Копировать</button>
+    <button class="btn btn-red" onclick="show('menu')">Выйти</button>
+  </div>
+  
+  <div class="box hidden" id="join">
+    <h1>🚪 Вход</h1>
+    <input type="text" id="cin" placeholder="ABCD" maxlength="4">
+    <button class="btn btn-green" onclick="join()">Войти</button>
+    <button class="btn btn-red" onclick="show('menu')">Назад</button>
+  </div>
+  
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const socket = io('http://193.148.59.127:3000');
+    const tg = Telegram.WebApp; tg.expand();
+    let uid = tg.initDataUnsafe?.user?.id?.toString() || 'g'+Math.random();
+    let deck = JSON.parse(localStorage.getItem('selectedDeck')||'null');
+    
+    socket.on('connect',()=>{
+      socket.emit('register',{userId:uid,username:tg.initDataUnsafe?.user?.first_name||'Player'});
+      checkDeck();
+    });
+    
+    function checkDeck(){
+      const ok = deck && Array.isArray(deck) && deck.length>0;
+      document.getElementById('btnM').disabled = !ok;
+      document.getElementById('btnR').disabled = !ok;
+      if(!ok) toast('⚠️ Выберите колоду в "Онлайн игре"');
+    }
+    
+    function show(id){ document.querySelectorAll('.box').forEach(b=>b.classList.add('hidden')); document.getElementById(id).classList.remove('hidden'); }
+    
+    // === ПОДБОР ===
+    function find(){
+      if(!deck){toast('⚠️ Выберите колоду');return}
+      show('search');
+      socket.emit('find_match',{deck});
+    }
+    socket.on('matchmaking_status',d=>{
+      if(d.status==='searching') document.getElementById('qPos').textContent = d.pos>1?`Очередь: ${d.pos}`:'';
+      else if(d.status==='cancelled') show('menu');
+    });
+    socket.on('match_found',d=>{
+      localStorage.setItem('roomId',d.roomId);
+      toast('🎮 Соперник найден!');
+      setTimeout(()=>location.href='battle-online.html',1500);
+    });
+    function cancel(){ socket.emit('cancel_search'); show('menu'); }
+    
+    // === КОМНАТА ===
+    function create(){
+      if(!deck){toast('⚠️ Выберите колоду');return}
+      socket.emit('create_room',{deck});
+    }
+    socket.on('room_created',d=>{
+      document.getElementById('code').textContent = d.roomCode;
+      show('room');
+    });
+    function copy(){ navigator.clipboard.writeText(document.getElementById('code').textContent); toast('📋 Скопировано'); }
+    
+    // === ВХОД ===
+    function join(){
+      const code = document.getElementById('cin').value.trim().toUpperCase();
+      if(code.length!==4){toast('⚠️ 4 символа');return}
+      if(!deck){toast('⚠️ Выберите колоду');return}
+      socket.emit('join_room',{roomCode:code,deck});
+    }
+    socket.on('game_start',()=>{ toast('🎮 Игра!'); setTimeout(()=>location.href='battle-online.html',1000); });
+    socket.on('error_msg',m=>toast('❌ '+m));
+    
+    function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('on'); setTimeout(()=>t.classList.remove('on'),2000); }
+    
+    // Авто-формат кода
+    document.getElementById('cin').oninput=function(){this.value=this.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,4)};
+  </script>
+</body>
+</html>

@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Битва</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="config.js"></script>
+  <style>
+    * { box-sizing: border-box; user-select: none; }
+    body { background: #1a1a2e; color: #fff; font-family: sans-serif; padding: 10px; padding-bottom: 110px; }
+    .top { display: flex; justify-content: space-between; background: rgba(255,255,255,0.1); padding: 10px; border-radius: 10px; margin-bottom: 10px; }
+    .coins { display: flex; gap: 4px; }
+    .coin { width: 18px; height: 18px; background: gold; border-radius: 50%; border: 2px solid orange; opacity: 0.3; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #000; font-weight: bold; }
+    .coin.active { opacity: 1; }
+    .score { font-size: 18px; font-weight: bold; }
+    
+    /* Поле: 2 колонки, в каждой 2 ряда по 2 слота = 4 карты на колонку */
+    .field { display: flex; justify-content: center; gap: 15px; margin: 10px 0; }
+    .col { display: flex; flex-direction: column; gap: 5px; }
+    .row { display: flex; gap: 5px; }
+    .slot { width: 65px; height: 70px; border: 1px dashed rgba(255,255,255,0.2); border-radius: 5px; display: flex; align-items: center; justify-content: center; }
+    
+    /* Карта */
+    .card { width: 61px; height: 66px; background: #2c3e50; border-radius: 4px; border: 2px solid #555; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 9px; cursor: pointer; position: relative; }
+    .card:active { transform: scale(0.95); }
+    .card.dead { opacity: 0.4; filter: grayscale(1); }
+    .card .pow { font-size: 20px; font-weight: 800; }
+    .card .name { font-size: 8px; text-align: center; line-height: 1.1; padding: 0 2px; overflow: hidden; height: 16px; }
+    .card .type { position: absolute; top: 2px; right: 2px; font-size: 7px; background: rgba(0,0,0,0.5); padding: 1px 3px; border-radius: 3px; }
+    
+    /* Рука */
+    .hand { position: fixed; bottom: 0; left: 0; right: 0; height: 95px; background: rgba(0,0,0,0.9); display: flex; overflow-x: auto; padding: 10px; gap: 6px; align-items: center; }
+    .hand .card { flex-shrink: 0; width: 58px; height: 75px; border: 2px solid #fff; }
+    .hand .card.sel { border-color: #f1c40f; transform: translateY(-8px); }
+    
+    /* Муллиган */
+    .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 2000; display: none; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
+    .overlay.on { display: flex; }
+    .mulligan { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 15px 0; max-width: 350px; }
+    .btn-go { padding: 12px 30px; background: #2ecc71; border: none; border-radius: 25px; color: #fff; font-size: 16px; font-weight: bold; cursor: pointer; }
+    
+    /* Управление */
+    .ctrl { position: fixed; bottom: 100px; right: 15px; display: flex; gap: 10px; }
+    .btn { padding: 10px 18px; border: none; border-radius: 20px; font-weight: bold; color: #fff; cursor: pointer; }
+    .btn-pass { background: #e74c3c; }
+    
+    /* Сообщение */
+    .toast { position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%); background: rgba(0,0,0,0.85); padding: 12px 20px; border-radius: 10px; z-index: 3000; display: none; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <div class="top">
+    <div><div style="font-size:11px;color:#aaa">БОТ</div><div class="coins" id="botC"><div class="coin">1</div><div class="coin">2</div></div><div class="score" id="botS">0</div></div>
+    <div style="text-align:center"><div style="font-size:13px;color:#f1c40f" id="rnd">Раунд 1</div></div>
+    <div style="text-align:right"><div style="font-size:11px;color:#aaa">ВЫ</div><div class="coins" id="myC"><div class="coin">1</div><div class="coin">2</div></div><div class="score" id="myS">0</div></div>
+  </div>
+
+  <!-- Поле противника -->
+  <div class="field">
+    <div class="col"><div class="row" id="bLT"></div><div class="row" id="bLB"></div></div>
+    <div class="col"><div class="row" id="bRT"></div><div class="row" id="bRB"></div></div>
+  </div>
+  
+  <div style="height:12px"></div>
+  
+  <!-- Поле игрока -->
+  <div class="field">
+    <div class="col"><div class="row" id="mLT"></div><div class="row" id="mLB"></div></div>
+    <div class="col"><div class="row" id="mRT"></div><div class="row" id="mRB"></div></div>
+  </div>
+
+  <div class="ctrl"><button class="btn btn-pass" onclick="pass()">PASS</button></div>
+  <div class="hand" id="hand"></div>
+
+  <!-- Муллиган -->
+  <div class="overlay" id="mull">
+    <h2>🔄 Муллиган</h2>
+    <p style="color:#aaa">Выберите до 3 карт для замены</p>
+    <div class="mulligan" id="mulList"></div>
+    <button class="btn-go" onclick="endMull()">НАЧАТЬ БОЙ</button>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+<script>
+const tg = Telegram.WebApp; tg.expand();
+
+// === СОСТОЯНИЕ ===
+let S = {
+  fac: localStorage.getItem('selectedFaction')||'knights',
+  deck:[], hand:[], discard:[],
+  myF: {l:{t:[],b:[]}, r:{t:[],b:[]}},
+  botF: {l:{t:[],b:[]}, r:{t:[],b:[]}},
+  botH:[], botD:[],
+  coins:{my:0,bot:0}, round:1, turn:'player', over:false
+};
+
+// === СТАРТ ===
+window.onload = () => { loadDeck(); draw(10); mulligan(); botInit(); };
+
+function loadDeck() {
+  const saved = localStorage.getItem(`deck_${S.fac}`);
+  if(saved) {
+    S.deck = JSON.parse(saved).map(id => {
+      for(let f in FACTIONS) {
+        const c = FACTIONS[f].cards.find(x=>x.id===id);
+        if(c) return {...c, p:c.power}; // p = current power
+      }
+      return null;
+    }).filter(c=>c);
+  } else {
+    S.deck = FACTIONS[S.fac].cards.slice(0,10).map(c=>({...c,p:c.power}));
+  }
+  shuffle(S.deck);
+}
+
+function draw(n) {
+  for(let i=0;i<n;i++) if(S.deck.length>0 && S.hand.length<10) S.hand.push(S.deck.pop());
+}
+
+function botInit() {
+  const pool = FACTIONS[S.fac==='knights'?'cultists':'knights'].cards;
+  for(let i=0;i<10;i++) S.botH.push({...pool[Math.floor(Math.random()*pool.length)], p:pool[0].power});
+  S.botD = pool.slice(10,35);
+}
+
+// === МУЛЛИГАН — ИСПРАВЛЕНО ===
+function mulligan() {
+  document.getElementById('mull').classList.add('on');
+  const list = document.getElementById('mulList');
+  list.innerHTML = '';
+  
+  S.hand.forEach((card, idx) => {
+    const el = document.createElement('div');
+    el.className = 'card';
+    el.innerHTML = `<div class="type">${card.type}</div><div class="pow">${card.p}</div><div class="name">${card.name}</div>`;
+    
+    // ✅ ПРЯМОЙ КЛИК — без делегирования, без таймеров
+    el.onclick = function() {
+      this.classList.toggle('sel');
+      this.dataset.s = this.classList.contains('sel') ? '1' : '0';
+    };
+    el.dataset.idx = idx;
+    list.appendChild(el);
+  });
+}
+
+function endMull() {
+  // Собираем выбранные индексы
+  const sel = Array.from(document.querySelectorAll('#mulList .card.sel'))
+    .map(e => parseInt(e.dataset.idx)).sort((a,b)=>b-a);
+  
+  // Заменяем
+  sel.forEach(idx => {
+    S.hand.splice(idx,1);
+    if(S.deck.length>0) S.hand.push(S.deck.pop());
+  });
+  
+  document.getElementById('mull').classList.remove('on');
+  render();
+  toast("🎮 Ваш ход!");
+}
+
+// === ХОД ИГРОКА ===
+function play(idx, col, row) {
+  if(S.turn!=='player' || S.over) return;
+  const card = S.hand[idx];
+  
+  if(card.row!=='any' && card.row!==col) { toast(`❌ Только для ${col==='l'?'левого':'правого'} ряда`); return; }
+  if(S.myF[col][row].length >= 2) { toast("❌ Ряд заполнен"); return; }
+  
+  // Размещаем
+  S.myF[col][row].push(card);
+  S.hand.splice(idx,1);
+  
+  // ✅ ЭФФЕКТ onPlay — СРАЗУ
+  if(card.effect && card.effect.type==='onPlay') applyEff(card, 'me', col, row);
+  
+  // Особые карты уходят в отбой
+  if(card.type==='special' || card.discardAfterUse) {
+    S.discard.push(card);
+    S.myF[col][row].pop();
+  }
+  
+  checkDeaths();
+  render();
+  
+  // Ход бота
+  S.turn = 'bot';
+  render();
+  setTimeout(botTurn, 1000);
+}
+
+// === БОТ ===
+function botTurn() {
+  if(S.over) return;
+  if(S.botH.length>0) {
+    const valid = S.botH.filter(c => {
+      const col = c.row==='any' ? (Math.random()>.5?'l':'r') : c.row;
+      return S.botF[col].t.length<2 || S.botF[col].b.length<2;
+    });
+    if(valid.length>0) {
+      const c = valid[0], hi = S.botH.indexOf(c);
+      const col = c.row==='any' ? (Math.random()>.5?'l':'r') : c.row;
+      const row = S.botF[col].t.length<2 ? 't':'b';
+      S.botF[col][row].push(c);
+      S.botH.splice(hi,1);
+      if(c.effect?.type==='onPlay') applyEff(c,'bot',col,row);
+      if(c.type==='special') { S.botD.push(c); S.botF[col][row].pop(); }
+    }
+  }
+  S.turn='player'; render();
+  if(S.hand.length===0 && S.botH.length===0) setTimeout(endRound,800);
+}
+
+function pass() { if(S.turn==='player') { S.turn='bot'; render(); setTimeout(botTurn,800); } }
+
+// === ЭФФЕКТЫ — ИСПРАВЛЕНО ===
+function applyEff(card, who, col, row) {
+  if(!card.effect) return;
+  const e = card.effect;
+  
+  // 💥 УРОН
+  if(e.action==='damage') {
+    const field = who==='me' ? S.botF : S.myF;
+    // Ищем первую живую карту в ЦЕЛЕВОЙ колонке (не обязательно тот же ряд)
+    for(let r of ['t','b']) {
+      const target = field[col][r].find(x => x.p > 0);
+      if(target) {
+        target.p -= e.value;
+        toast(`💥 ${card.name} → ${e.value} урона!`);
+        break;
+      }
+    }
+  }
+  
+  // 💪 БУФФ
+  if(e.action==='buff') {
+    const field = who==='me' ? S.myF : S.botF;
+    field[col][row].forEach(x => { if(x.id!==card.id) x.p += e.value; });
+    toast(`💪 ${card.name} +${e.value} силы!`);
+  }
+  
+  // 👻 ПРИЗЫВ
+  if(e.action==='summon' && e.card) {
+    const tpl = FACTIONS[S.fac].cards.find(c=>c.id===e.card);
+    if(tpl && S.myF[col][row].length<2) {
+      const sum = {...tpl, p:tpl.power};
+      S.myF[col][row].push(sum);
+      toast(`👻 Призван ${tpl.name}!`);
+    }
+  }
+}
+
+// === СМЕРТЬ КАРТ ===
+function checkDeaths() {
+  ['l','r'].forEach(col => ['t','b'].forEach(row => {
+    S.myF[col][row] = S.myF[col][row].filter(c => c.p > 0);
+    S.botF[col][row] = S.botF[col][row].filter(c => c.p > 0);
+  }));
+}
+
+// === КОНЕЦ РАУНДА ===
+function endRound() {
+  let ms=0, bs=0;
+  ['l','r'].forEach(col => ['t','b'].forEach(row => {
+    S.myF[col][row].forEach(c=>ms+=c.p);
+    S.botF[col][row].forEach(c=>bs+=c.p);
+  }));
+  document.getElementById('myS').textContent=ms;
+  document.getElementById('botS').textContent=bs;
+  
+  if(ms>bs) { S.coins.my++; toast("🏆 Ваш раунд!"); }
+  else if(bs>ms) { S.coins.bot++; toast("💀 Раунд бота!"); }
+  else toast("🤝 Ничья!");
+  
+  updateCoins();
+  if(S.coins.my>=2 || S.coins.bot>=2) {
+    setTimeout(()=>alert(S.coins.my>=2?"🎉 ПОБЕДА!":"💀 ПОРАЖЕНИЕ!"),500);
+    S.over=true; return;
+  }
+  
+  S.round++; document.getElementById('rnd').textContent=`Раунд ${S.round}`;
+  // Очистка поля
+  ['l','r'].forEach(col => ['t','b'].forEach(row => {
+    S.myF[col][row].forEach(c => { if(!c.effect||c.effect.type!=='persist') S.discard.push(c); });
+    S.botF[col][row].forEach(c => { if(!c.effect||c.effect.type!=='persist') S.botD.push(c); });
+    S.myF[col][row] = S.myF[col][row].filter(c => c.effect?.type==='persist');
+    S.botF[col][row] = S.botF[col][row].filter(c => c.effect?.type==='persist');
+  }));
+  // Добор
+  if(S.deck.length>0) S.hand.push(S.deck.pop());
+  if(S.botD.length>0) S.botH.push(S.botD.pop());
+  S.turn='player'; render(); toast(`🎮 Раунд ${S.round}!`);
+}
+
+// === РЕНДЕР ===
+function render() {
+  renderCol('m', S.myF); renderCol('b', S.botF);
+  
+  const hand = document.getElementById('hand'); hand.innerHTML='';
+  S.hand.forEach((card,idx) => {
+    const el = document.createElement('div');
+    el.className = 'card';
+    el.innerHTML = `<div class="type">${card.type}</div><div class="pow">${card.p}</div><div class="name">${card.name}</div>`;
+    // ✅ КЛИК ПО КАРТЕ В РУКЕ — выбор ряда
+    el.onclick = () => {
+      if(card.row!=='any') play(idx, card.row, 't'); // авто в верхний ряд
+      else {
+        const go = confirm(`Куда "${card.name}"?\n✅ ОК = Левый ❌ Отмена = Правый`);
+        play(idx, go?'l':'r', 't');
+      }
+    };
+    hand.appendChild(el);
+  });
+}
+
+function renderCol(who, field) {
+  ['l','r'].forEach(col => ['t','b'].forEach(row => {
+    const el = document.getElementById(`${who}${col}${row.toUpperCase()}`);
+    el.innerHTML='';
+    field[col][row].forEach(card => {
+      const c = document.createElement('div');
+      c.className = `card ${card.p<=0?'dead':''}`;
+      c.innerHTML = `<div class="type">${card.type}</div><div class="pow">${card.p}</div><div class="name">${card.name}</div>`;
+      if(who==='m') c.onclick = () => showInfo(card);
+      el.appendChild(c);
+    });
+  }));
+}
+
+function updateCoins() {
+  document.querySelectorAll('#myC .coin').forEach((e,i)=>e.classList.toggle('active',i<S.coins.my));
+  document.querySelectorAll('#botC .coin').forEach((e,i)=>e.classList.toggle('active',i<S.coins.bot));
+}
+
+function showInfo(card) {
+  const eff = card.effect ? card.effect.description : 'Нет эффекта';
+  alert(`${card.name}\n⚔️ Сила: ${card.p}\n📜 ${eff}`);
+}
+
+function toast(m) { const t=document.getElementById('toast'); t.textContent=m; t.style.display='block'; setTimeout(()=>t.style.display='none',1500); }
+function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } }
+</script>
+</body>
+</html>
