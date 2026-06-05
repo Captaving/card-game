@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Lily Wars</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- ═══════════════════ TOAST ═══════════════════ -->
+<div id="toast"></div>
+
+<!-- ═══════════════════ MAIN MENU ═══════════════════ -->
+<div id="screen-main" class="screen active">
+  <div class="main-logo">⚜ LILY WARS</div>
+  <div id="player-rating" class="player-rating">Рейтинг: —</div>
+  <div class="main-buttons">
+    <button id="btn-find-match" class="btn-primary">⚔ Найти матч</button>
+    <button id="btn-deck-builder" class="btn-secondary">🃏 Колода</button>
+    <button id="btn-vs-bot" class="btn-secondary">🤖 Vs Бот</button>
+  </div>
+</div>
+
+<!-- ═══════════════════ QUEUE ═══════════════════ -->
+<div id="screen-queue" class="screen">
+  <div class="queue-spinner"></div>
+  <div id="queue-status" class="queue-status">Поиск соперника...</div>
+  <button id="btn-cancel-queue" class="btn-secondary">Отмена</button>
+</div>
+
+<!-- ═══════════════════ MULLIGAN ═══════════════════ -->
+<div id="screen-mulligan" class="screen">
+  <div class="screen-title">Начальная рука</div>
+  <div id="match-opponent" class="opponent-label"></div>
+  <p class="mulligan-hint">Выберите до 3 карт для замены</p>
+  <div id="mulligan-hand" class="mulligan-hand"></div>
+  <div id="mulligan-status" class="mulligan-status"></div>
+  <button id="btn-mulligan-confirm" class="btn-primary">Подтвердить</button>
+</div>
+
+<!-- ═══════════════════ GAME BOARD ═══════════════════ -->
+<div id="screen-game" class="screen">
+
+  <!-- TOP BAR -->
+  <div class="top-bar">
+    <div id="leader-opp" class="leader-slot"></div>
+    <div class="top-center">
+      <div id="round-display" class="round-display">Раунд 1/3</div>
+      <div id="turn-indicator" class="turn-indicator">—</div>
+      <div class="coins-row">
+        <span id="coins-opp" class="coins opp-coins"></span>
+        <span class="coins-label">vs</span>
+        <span id="coins-me" class="coins me-coins"></span>
+      </div>
+    </div>
+    <div class="opp-info">
+      <div id="opp-name" class="opp-name">Соперник</div>
+      <div class="deck-info">
+        <span id="opp-hand-count" class="hand-count">0</span>🂠
+        <span id="opp-deck-count">0</span>📚
+        <span id="opp-discard-count" id="btn-discard-opp" class="clickable">0</span>🗑
+      </div>
+    </div>
+  </div>
+
+  <!-- OPPONENT FIELD -->
+  <div class="field-section opp-section">
+    <div class="field-row">
+      <div class="row-label">←</div>
+      <div id="field-opp-left" class="field-row-cards"></div>
+      <div id="row-score-opp-left" class="row-score">0</div>
+    </div>
+    <div class="field-row">
+      <div class="row-label">→</div>
+      <div id="field-opp-right" class="field-row-cards"></div>
+      <div id="row-score-opp-right" class="row-score">0</div>
+    </div>
+  </div>
+
+  <!-- SCORE BAR -->
+  <div class="score-bar">
+    <div id="score-opp" class="score-number opp-score">0</div>
+    <div class="score-divider">
+      <button id="btn-pass" class="btn-pass">ПАС</button>
+    </div>
+    <div id="score-me" class="score-number me-score">0</div>
+  </div>
+
+  <!-- MY FIELD -->
+  <div class="field-section me-section">
+    <div class="field-row">
+      <div class="row-label">←</div>
+      <div id="field-me-left" class="field-row-cards"></div>
+      <div id="row-score-me-left" class="row-score">0</div>
+    </div>
+    <div class="field-row">
+      <div class="row-label">→</div>
+      <div id="field-me-right" class="field-row-cards"></div>
+      <div id="row-score-me-right" class="row-score">0</div>
+    </div>
+  </div>
+
+  <!-- BOTTOM BAR -->
+  <div class="bottom-bar">
+    <div id="leader-me" class="leader-slot"></div>
+    <div id="hand-container" class="hand-container">
+      <!-- cards rendered here -->
+    </div>
+    <div class="my-info">
+      <span id="my-deck-count">0</span>📚
+      <!-- ✅ Стало: -->
+<span id="my-discard-count" class="clickable">0</span>
+<button id="btn-discard-me" class="icon-btn" aria-label="Показать отбой">🗑</button>
+      <button id="btn-forfeit" class="btn-forfeit">🏳</button>
+    </div>
+  </div>
+
+</div><!-- end screen-game -->
+
+<!-- ═══════════════════ GAME OVER ═══════════════════ -->
+<div id="screen-gameover" class="screen">
+  <div id="gameover-title" class="gameover-title">—</div>
+  <div id="gameover-reason" class="gameover-reason"></div>
+  <div id="gameover-rating" class="gameover-rating"></div>
+  <button id="btn-play-again" class="btn-primary">Играть снова</button>
+</div>
+
+<!-- ═══════════════════ MODALS ═══════════════════ -->
+
+<!-- Row selector -->
+<div id="row-selector" class="modal" style="display:none">
+  <div class="modal-box">
+    <div class="modal-title">Выберите ряд</div>
+    <div class="modal-buttons">
+      <button id="row-left-btn" class="btn-primary">← Левый</button>
+      <button id="row-right-btn" class="btn-primary">Правый →</button>
+    </div>
+  </div>
+</div>
+
+<!-- Discard modal -->
+<div id="discard-modal" class="modal" style="display:none">
+  <div class="modal-box modal-wide">
+    <div class="modal-title">Отбой</div>
+    <div id="discard-list" class="card-grid"></div>
+    <button id="discard-close" class="btn-secondary">Закрыть</button>
+  </div>
+</div>
+
+<!-- Reveal modal -->
+<div id="reveal-modal" class="modal" style="display:none">
+  <div class="modal-box">
+    <div id="reveal-title" class="modal-title">Карты противника</div>
+    <div id="reveal-list" class="card-grid"></div>
+    <button id="reveal-close" class="btn-secondary">Закрыть</button>
+  </div>
+</div>
+
+<!-- Card detail modal -->
+<div id="card-detail-modal" class="modal" style="display:none">
+  <div class="modal-box">
+    <div id="detail-name" class="detail-name"></div>
+    <div id="detail-type" class="detail-type"></div>
+    <div id="detail-power" class="detail-power"></div>
+    <div id="detail-faction" class="detail-faction"></div>
+    <div id="detail-effect" class="detail-effect"></div>
+    <button id="detail-close" class="btn-secondary">Закрыть</button>
+  </div>
+</div>
+
+<!-- Подключение клиентских скриптов (важен порядок!) -->
+<script src="js/config.js"></script>      <!-- 1. Конфигурация карт/фракций -->
+<script src="js/deckbuilder.js"></script> <!-- 2. Логика декбилдера -->
+<script src="js/bot.js"></script>         <!-- 3. ИИ бота -->
+<script src="js/game.js"></script>        <!-- 4. Основной движок игры --></body>
+</html>
