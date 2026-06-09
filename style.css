@@ -1,0 +1,388 @@
+/* ═══════════════════════════════════════════
+   LILY WARS — STYLE.CSS
+   ═══════════════════════════════════════════ */
+
+:root {
+  --f-primary: #3498db;
+  --f-bg:      #1a3a5c;
+  --f-text:    #7ec8e3;
+  --bg:        #0d0d1a;
+  --bg2:       #12122a;
+  --txt:       #f0f0f0;
+  --dim:       #8a8a9a;
+  --gold:      #f1c40f;
+  --red:       #e74c3c;
+  --green:     #2ecc71;
+  --purple:    #9b59b6;
+  --r:         8px;
+  --cw:        60px;
+  --ch:        86px;
+}
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--txt);
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:13px;
+  -webkit-tap-highlight-color:transparent;user-select:none}
+
+/* ── Screens ───────────────────────────────────────── */
+.screen{display:none;position:absolute;inset:0;flex-direction:column;
+  align-items:center;justify-content:center;padding:16px;background:var(--bg)}
+.screen.active{display:flex}
+
+/* ── Main Menu ─────────────────────────────────────── */
+.main-logo{font-size:36px;font-weight:900;color:var(--f-primary);letter-spacing:4px;
+  text-shadow:0 0 30px var(--f-primary),0 0 60px var(--f-primary);margin-bottom:6px;
+  animation:pulse-glow 3s ease-in-out infinite}
+@keyframes pulse-glow{
+  0%,100%{text-shadow:0 0 20px var(--f-primary),0 0 40px var(--f-primary)}
+  50%{text-shadow:0 0 40px var(--f-primary),0 0 80px var(--f-primary),0 0 100px var(--f-primary)}}
+.main-subtitle{font-size:11px;letter-spacing:6px;color:var(--dim);margin-bottom:4px;text-transform:uppercase}
+.player-rating{color:var(--gold);font-size:14px;margin-bottom:36px;font-weight:600}
+.main-buttons{display:flex;flex-direction:column;gap:12px;width:100%;max-width:280px}
+
+/* ── Buttons ───────────────────────────────────────── */
+.btn,.btn-primary,.btn-secondary{padding:13px 24px;border:none;border-radius:var(--r);
+  font-size:15px;font-weight:600;cursor:pointer;transition:transform .12s,opacity .12s,box-shadow .2s;
+  position:relative;overflow:hidden}
+.btn-primary{background:linear-gradient(135deg,var(--f-primary),color-mix(in srgb,var(--f-primary) 70%,#000));
+  color:#fff;box-shadow:0 4px 15px color-mix(in srgb,var(--f-primary) 40%,transparent)}
+.btn-primary:hover{box-shadow:0 6px 20px color-mix(in srgb,var(--f-primary) 60%,transparent)}
+.btn-secondary{background:transparent;color:var(--f-primary);border:1.5px solid var(--f-primary)}
+.btn-primary:active,.btn-secondary:active{transform:scale(.96);opacity:.85}
+.btn-primary:disabled,.btn-secondary:disabled{opacity:.35;pointer-events:none}
+/* Ripple effect */
+.btn::after{content:'';position:absolute;inset:0;background:rgba(255,255,255,.15);
+  border-radius:50%;transform:scale(0);opacity:0;transition:transform .4s,opacity .4s}
+.btn:active::after{transform:scale(3);opacity:0;transition:none}
+
+/* ── Queue ─────────────────────────────────────────── */
+.queue-wrap{display:flex;flex-direction:column;align-items:center;gap:20px;width:100%;max-width:280px}
+.queue-spinner{width:52px;height:52px;border:4px solid rgba(255,255,255,.1);
+  border-top-color:var(--f-primary);border-radius:50%;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.queue-status{font-size:16px;text-align:center;color:var(--txt)}
+
+/* ── Mulligan ──────────────────────────────────────── */
+.screen-title{font-size:22px;font-weight:700;margin-bottom:6px}
+.opponent-label{color:var(--f-primary);margin-bottom:8px;font-weight:600}
+.mulligan-hint{color:var(--dim);font-size:12px;margin-bottom:16px}
+.mulligan-hand{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-bottom:14px;
+  max-height:55vh;overflow-y:auto}
+.mulligan-status{color:var(--dim);margin-bottom:12px;min-height:18px;font-size:12px}
+
+/* ── Deck Builder ──────────────────────────────────── */
+#screen-deck{padding:0;background:var(--bg2);justify-content:flex-start}
+.db-header{width:100%;display:flex;align-items:center;gap:8px;padding:10px 12px;
+  background:rgba(0,0,0,.4);border-bottom:1px solid rgba(255,255,255,.08);flex-shrink:0}
+.db-header h2{font-size:16px;font-weight:700;flex:1}
+.db-back{background:none;border:none;color:var(--f-primary);font-size:22px;cursor:pointer;padding:4px}
+.db-save{padding:8px 18px;border:none;border-radius:6px;background:var(--f-primary);
+  color:#fff;font-weight:600;font-size:13px;cursor:pointer}
+.db-save:disabled{opacity:.4;pointer-events:none}
+
+.db-faction-tabs{display:flex;gap:6px;padding:10px 12px;overflow-x:auto;flex-shrink:0;scrollbar-width:none}
+.db-faction-tabs::-webkit-scrollbar{display:none}
+.db-faction-tab{padding:6px 14px;border-radius:20px;border:1.5px solid rgba(255,255,255,.15);
+  background:transparent;color:var(--dim);font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;
+  transition:all .2s}
+.db-faction-tab.active{color:#fff;border-color:var(--f-primary);
+  background:rgba(var(--f-primary-rgb,52,152,219),.2)}
+
+.db-leader-section{padding:8px 12px;flex-shrink:0}
+.db-leader-label{font-size:11px;color:var(--dim);margin-bottom:6px;text-transform:uppercase;letter-spacing:1px}
+.db-leaders{display:flex;gap:8px}
+.db-leader-btn{flex:1;padding:8px;border-radius:8px;border:1.5px solid rgba(255,255,255,.15);
+  background:rgba(255,255,255,.04);cursor:pointer;text-align:left;transition:all .2s}
+.db-leader-btn.selected{border-color:var(--gold);background:rgba(241,196,15,.1)}
+.db-leader-name{font-size:11px;font-weight:700;color:var(--txt);margin-bottom:3px}
+.db-leader-desc{font-size:9px;color:var(--dim);line-height:1.3}
+
+.db-filters{display:flex;gap:6px;padding:6px 12px;overflow-x:auto;flex-shrink:0;scrollbar-width:none}
+.db-filters::-webkit-scrollbar{display:none}
+.db-filter-btn{padding:5px 12px;border-radius:16px;border:1.5px solid rgba(255,255,255,.12);
+  background:transparent;color:var(--dim);font-size:11px;cursor:pointer;white-space:nowrap;transition:all .2s}
+.db-filter-btn.active{color:#fff;border-color:var(--f-primary)}
+
+.db-body{display:flex;flex:1;overflow:hidden;gap:1px}
+.db-pool{flex:1;overflow-y:auto;padding:8px;scrollbar-width:thin;scrollbar-color:var(--f-primary) transparent}
+.db-pool::-webkit-scrollbar{width:3px}
+.db-pool::-webkit-scrollbar-thumb{background:var(--f-primary);border-radius:4px}
+
+.db-deck-panel{width:140px;display:flex;flex-direction:column;background:rgba(0,0,0,.3);
+  border-left:1px solid rgba(255,255,255,.06)}
+.db-deck-stats{padding:8px;border-bottom:1px solid rgba(255,255,255,.06);flex-shrink:0}
+.db-deck-count{font-size:18px;font-weight:900;color:var(--f-primary);text-align:center}
+.db-deck-count span{font-size:11px;color:var(--dim);font-weight:400}
+.db-influence{font-size:11px;color:var(--dim);text-align:center;margin-top:2px}
+.db-influence.over{color:var(--red)}
+.db-deck-list{flex:1;overflow-y:auto;padding:4px;scrollbar-width:none}
+.db-deck-list::-webkit-scrollbar{display:none}
+.db-deck-item{display:flex;align-items:center;justify-content:space-between;
+  padding:3px 6px;border-radius:5px;margin-bottom:2px;background:rgba(255,255,255,.04);
+  cursor:pointer;transition:background .15s}
+.db-deck-item:hover{background:rgba(231,76,60,.2)}
+.db-deck-item-name{font-size:9px;color:var(--txt);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.db-deck-item-power{font-size:10px;font-weight:700;color:var(--gold);margin-right:4px}
+.db-deck-item-count{font-size:9px;color:var(--dim)}
+.db-clear-btn{margin:8px;padding:6px;border:none;border-radius:6px;background:rgba(231,76,60,.2);
+  color:var(--red);font-size:11px;font-weight:600;cursor:pointer}
+
+/* Pool card rows */
+.db-card-row{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;
+  margin-bottom:4px;background:rgba(255,255,255,.03);cursor:pointer;
+  transition:background .15s,transform .12s;border:1.5px solid transparent}
+.db-card-row:hover{background:rgba(255,255,255,.07);transform:translateX(2px)}
+.db-card-row.in-deck{border-color:rgba(255,255,255,.12);background:rgba(var(--f-primary-rgb,52,152,219),.08)}
+.db-card-row.maxed{opacity:.45;pointer-events:none}
+.db-row-mini{width:36px;height:50px;border-radius:5px;border:1.5px solid;
+  display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;flex-shrink:0}
+.db-row-info{flex:1;min-width:0}
+.db-row-name{font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.db-row-meta{font-size:10px;color:var(--dim);margin-top:1px}
+.db-row-effect{font-size:9px;color:var(--dim);margin-top:2px;line-height:1.3;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.db-row-add{width:24px;height:24px;border-radius:50%;border:none;
+  background:rgba(46,204,113,.2);color:var(--green);font-size:16px;
+  cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.db-row-add:hover{background:var(--green);color:#000}
+.db-row-infl{font-size:10px;color:var(--gold);font-weight:700;flex-shrink:0}
+
+/* Saved deck notification */
+.deck-saved-toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(60px);
+  background:rgba(46,204,113,.9);color:#fff;padding:10px 20px;border-radius:20px;
+  font-weight:600;font-size:13px;z-index:300;transition:transform .3s}
+.deck-saved-toast.show{transform:translateX(-50%) translateY(0)}
+
+/* ── Game Board ────────────────────────────────────── */
+#screen-game{display:none;flex-direction:column;justify-content:space-between;
+  padding:4px;gap:2px;
+  background:linear-gradient(180deg,var(--f-bg) 0%,var(--bg) 50%,var(--f-bg) 100%)}
+#screen-game.active{display:flex}
+
+.top-bar{display:flex;align-items:center;justify-content:space-between;
+  padding:4px 8px;background:rgba(0,0,0,.35);border-radius:var(--r);min-height:52px;flex-shrink:0}
+.top-center{text-align:center;flex:1;padding:0 4px}
+.round-display{font-size:10px;color:var(--dim);letter-spacing:1px;text-transform:uppercase}
+.turn-indicator{font-size:12px;font-weight:700;padding:2px 10px;border-radius:20px;
+  margin:2px auto;display:inline-block}
+.turn-indicator.my-turn{background:rgba(46,204,113,.2);color:var(--green)}
+.turn-indicator.opp-turn{background:rgba(231,76,60,.2);color:#ff6b6b}
+.coins-row{display:flex;gap:4px;justify-content:center;align-items:center;margin-top:2px}
+.coins{color:var(--gold);font-size:15px;letter-spacing:3px}
+.coins-label{color:var(--dim);font-size:10px}
+.opp-info{text-align:right;font-size:10px;color:var(--dim)}
+.opp-name{font-size:12px;font-weight:600;color:var(--txt);margin-bottom:2px}
+.deck-info{display:flex;gap:3px;align-items:center;justify-content:flex-end}
+
+/* Leader */
+.leader-slot{width:46px;flex-shrink:0}
+.leader-icon{width:46px;height:46px;border-radius:50%;background:var(--f-bg);
+  border:2px solid var(--f-primary);display:flex;flex-direction:column;
+  align-items:center;justify-content:center;cursor:pointer;font-size:7px;
+  text-align:center;transition:box-shadow .2s,transform .15s;position:relative;overflow:hidden}
+.leader-icon:active{box-shadow:0 0 16px var(--f-primary);transform:scale(.95)}
+.leader-icon.used{opacity:.4;border-color:var(--dim)}
+.leader-icon.opponent{border-color:var(--red)}
+.leader-name{font-size:7px;color:var(--f-text);font-weight:700;line-height:1.1;padding:0 2px}
+.leader-charges{position:absolute;bottom:1px;right:1px;background:var(--gold);color:#000;
+  font-size:8px;font-weight:900;width:15px;height:15px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center}
+
+/* Fields */
+.field-section{display:flex;flex-direction:column;gap:2px;flex:1}
+.opp-section{border-bottom:1px solid rgba(255,255,255,.07);padding-bottom:2px}
+.me-section{border-top:1px solid rgba(255,255,255,.07);padding-top:2px}
+.field-row{display:flex;align-items:center;gap:2px;
+  min-height:calc(var(--ch) + 6px);padding:2px 4px;border-radius:6px;
+  background:rgba(255,255,255,.025);transition:background .2s}
+.field-row.highlight{background:rgba(46,204,113,.08);border:1px dashed rgba(46,204,113,.3)}
+.row-label{width:10px;font-size:9px;color:var(--dim);flex-shrink:0}
+.field-row-cards{display:flex;gap:3px;flex:1;overflow:hidden;
+  min-height:var(--ch);align-items:center;cursor:pointer;position:relative}
+.row-score{width:22px;text-align:center;font-size:13px;font-weight:900;color:var(--f-text);flex-shrink:0}
+
+/* Score bar */
+.score-bar{display:flex;align-items:center;justify-content:space-between;
+  padding:0 10px;min-height:34px;flex-shrink:0}
+.score-number{font-size:24px;font-weight:900;min-width:32px;text-align:center}
+.me-score{color:var(--green)}
+.opp-score{color:var(--red)}
+.score-mid{flex:1;display:flex;justify-content:center}
+.btn-pass{padding:7px 18px;border:2px solid var(--f-primary);border-radius:20px;
+  background:transparent;color:var(--f-primary);font-size:12px;font-weight:700;
+  cursor:pointer;letter-spacing:1px;transition:all .2s}
+.btn-pass:active{background:var(--f-primary);color:#fff}
+.btn-pass:disabled{opacity:.3;pointer-events:none}
+
+/* Bottom bar */
+.bottom-bar{display:flex;align-items:flex-end;gap:4px;padding:4px;
+  background:rgba(0,0,0,.3);border-radius:var(--r);flex-shrink:0}
+.my-info{font-size:10px;color:var(--dim);text-align:right;display:flex;flex-direction:column;gap:3px;
+  align-items:flex-end}
+.btn-forfeit{background:none;border:none;font-size:17px;cursor:pointer;opacity:.6;
+  transition:opacity .2s}
+.btn-forfeit:hover{opacity:1}
+
+/* Hand */
+.hand-container{display:flex;gap:3px;flex:1;overflow-x:auto;overflow-y:hidden;
+  padding:4px 2px;scrollbar-width:none;align-items:flex-end;
+  min-height:calc(var(--ch) + 10px);transition:all .3s}
+.hand-container.expanded{height:210px;align-items:flex-start;flex-wrap:wrap;overflow-y:auto}
+.hand-container::-webkit-scrollbar{display:none}
+
+/* ── Cards ─────────────────────────────────────────── */
+.card{width:var(--cw);min-width:var(--cw);height:var(--ch);border-radius:7px;
+  border:2px solid #444;display:flex;flex-direction:column;align-items:center;
+  justify-content:space-between;padding:3px;cursor:pointer;position:relative;
+  transition:transform .15s,box-shadow .15s;overflow:hidden;flex-shrink:0}
+.card::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.06),transparent 60%);pointer-events:none}
+.card:active{transform:scale(.94)}
+.card.interactive:hover{transform:translateY(-5px);box-shadow:0 8px 20px rgba(0,0,0,.5)}
+.card.selected{transform:translateY(-12px);
+  box-shadow:0 0 0 2px var(--green),0 10px 24px rgba(46,204,113,.35);z-index:5}
+.card.targeting{box-shadow:0 0 0 2px var(--red),0 0 12px rgba(231,76,60,.5);
+  animation:target-pulse .7s ease-in-out infinite alternate}
+@keyframes target-pulse{from{box-shadow:0 0 0 2px var(--red),0 0 8px rgba(231,76,60,.4)}
+  to{box-shadow:0 0 0 2px var(--red),0 0 20px rgba(231,76,60,.8)}}
+.card.ally-target{box-shadow:0 0 0 2px var(--green),0 0 12px rgba(46,204,113,.5);
+  animation:ally-pulse .7s ease-in-out infinite alternate}
+@keyframes ally-pulse{from{box-shadow:0 0 0 2px var(--green),0 0 8px rgba(46,204,113,.4)}
+  to{box-shadow:0 0 0 2px var(--green),0 0 20px rgba(46,204,113,.8)}}
+
+/* Card types */
+.card-white{background:linear-gradient(160deg,#2a2a3e,#1e1e30);border-color:#555}
+.card-gray{background:linear-gradient(160deg,#2d3436,#1e2426);border-color:#636e72}
+.card-purple{background:linear-gradient(160deg,#2d1b4e,#1a0f30);border-color:#9b59b6}
+.card-gold{background:linear-gradient(160deg,#3d2b00,#251900);border-color:#f1c40f;
+  box-shadow:0 0 8px rgba(241,196,15,.25)}
+.card-special{background:linear-gradient(160deg,#3d0000,#220000);border-color:#e74c3c}
+
+.card-power{position:absolute;top:2px;left:3px;font-size:17px;font-weight:900;
+  color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.9);line-height:1}
+.card-gold .card-power{color:var(--gold)}
+.card-special .card-power{color:var(--red)}
+.card-name{position:absolute;bottom:2px;left:0;right:0;font-size:7px;text-align:center;
+  color:rgba(255,255,255,.8);line-height:1.2;padding:0 2px;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.card-effect-dot{position:absolute;top:2px;right:3px;font-size:9px;color:var(--gold);opacity:.9}
+.card-charges{position:absolute;bottom:11px;right:2px;font-size:8px;color:#ffd700;
+  background:rgba(0,0,0,.55);border-radius:3px;padding:0 2px}
+.card-curse{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-size:18px;opacity:.55;color:var(--purple);pointer-events:none}
+
+/* ── Card Animations ───────────────────────────────── */
+@keyframes card-play-in{
+  0%{transform:translateY(60px) scale(.7);opacity:0}
+  60%{transform:translateY(-8px) scale(1.05);opacity:1}
+  100%{transform:translateY(0) scale(1);opacity:1}}
+@keyframes card-from-hand{
+  0%{transform:translateY(80px) scale(.6) rotate(-8deg);opacity:0}
+  70%{transform:translateY(-5px) scale(1.04) rotate(1deg);opacity:1}
+  100%{transform:translateY(0) scale(1) rotate(0);opacity:1}}
+@keyframes card-damage{
+  0%{filter:brightness(1)}
+  20%{filter:brightness(3) saturate(0);transform:scale(1.08)}
+  60%{filter:brightness(.6) saturate(2);transform:translateX(-3px)}
+  80%{transform:translateX(3px)}
+  100%{filter:brightness(1);transform:translateX(0)}}
+@keyframes card-buff{
+  0%{filter:brightness(1)}
+  30%{filter:brightness(1.8) hue-rotate(60deg);transform:scale(1.1)}
+  100%{filter:brightness(1);transform:scale(1)}}
+@keyframes card-death{
+  0%{transform:scale(1);opacity:1;filter:brightness(1)}
+  30%{transform:scale(1.2);filter:brightness(2) saturate(0)}
+  70%{transform:scale(.3) rotate(20deg);opacity:.4;filter:brightness(0)}
+  100%{transform:scale(0);opacity:0}}
+@keyframes card-appear{
+  0%{transform:scale(0) rotate(-15deg);opacity:0}
+  60%{transform:scale(1.15) rotate(3deg);opacity:1}
+  100%{transform:scale(1) rotate(0);opacity:1}}
+@keyframes power-change{
+  0%{transform:scale(1)}
+  40%{transform:scale(1.6)}
+  70%{transform:scale(.9)}
+  100%{transform:scale(1)}}
+@keyframes float-number{
+  0%{transform:translateY(0);opacity:1}
+  100%{transform:translateY(-40px);opacity:0}}
+@keyframes shake-row{
+  0%,100%{transform:translateX(0)}
+  20%{transform:translateX(-5px)}
+  40%{transform:translateX(5px)}
+  60%{transform:translateX(-4px)}
+  80%{transform:translateX(4px)}}
+@keyframes glitter{
+  0%,100%{box-shadow:0 0 8px rgba(241,196,15,.3)}
+  50%{box-shadow:0 0 20px rgba(241,196,15,.8),0 0 40px rgba(241,196,15,.4)}}
+
+.anim-play-in{animation:card-from-hand .45s cubic-bezier(.22,.68,0,1.2) forwards}
+.anim-damage{animation:card-damage .5s ease-out}
+.anim-buff{animation:card-buff .5s ease-out}
+.anim-death{animation:card-death .55s ease-in forwards}
+.anim-appear{animation:card-appear .4s cubic-bezier(.22,.68,0,1.2) forwards}
+.anim-gold{animation:glitter 2s ease-in-out infinite}
+
+/* Float number (damage/buff indicator) */
+.float-num{position:absolute;font-size:14px;font-weight:900;pointer-events:none;z-index:50;
+  animation:float-number .9s ease-out forwards;text-shadow:0 2px 4px rgba(0,0,0,.8)}
+.float-num.dmg{color:var(--red)}
+.float-num.buf{color:var(--green)}
+
+/* ── Card Detail Tooltip ────────────────────────────── */
+.card-tooltip{position:fixed;z-index:200;background:rgba(10,10,30,.97);
+  border:1.5px solid var(--f-primary);border-radius:12px;padding:14px;
+  max-width:220px;pointer-events:none;box-shadow:0 8px 30px rgba(0,0,0,.7)}
+.tooltip-name{font-size:15px;font-weight:800;margin-bottom:4px;color:var(--txt)}
+.tooltip-row{display:flex;gap:6px;align-items:center;margin-bottom:4px}
+.tooltip-type-badge{padding:2px 8px;border-radius:10px;font-size:9px;font-weight:700;text-transform:uppercase}
+.tooltip-power{font-size:20px;font-weight:900;color:var(--gold)}
+.tooltip-influence{font-size:11px;color:var(--dim)}
+.tooltip-line{height:1px;background:rgba(255,255,255,.1);margin:6px 0}
+.tooltip-effect{font-size:11px;color:rgba(255,255,255,.85);line-height:1.5}
+.tooltip-row-hint{font-size:10px;color:var(--dim);margin-top:4px}
+
+/* ── Modals ────────────────────────────────────────── */
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.75);display:flex;
+  align-items:center;justify-content:center;z-index:100;
+  animation:modal-in .2s ease-out}
+@keyframes modal-in{from{opacity:0}to{opacity:1}}
+.modal-box{background:#13132a;border:1.5px solid var(--f-primary);border-radius:14px;
+  padding:20px;max-width:90vw;max-height:82vh;overflow-y:auto;
+  display:flex;flex-direction:column;gap:12px;
+  animation:box-in .25s cubic-bezier(.22,.68,0,1.2)}
+@keyframes box-in{from{transform:scale(.85);opacity:0}to{transform:scale(1);opacity:1}}
+.modal-wide{max-width:96vw}
+.modal-title{font-size:16px;font-weight:700;text-align:center;color:var(--f-primary)}
+.modal-buttons{display:flex;gap:12px;justify-content:center}
+.card-grid{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+
+/* ── Toast ─────────────────────────────────────────── */
+#toast{position:fixed;top:12px;left:50%;transform:translateX(-50%) translateY(-70px);
+  background:rgba(13,13,40,.97);border:1.5px solid var(--f-primary);border-radius:22px;
+  padding:9px 18px;font-size:13px;color:#fff;z-index:300;transition:transform .3s;
+  white-space:nowrap;max-width:92vw;text-align:center;
+  box-shadow:0 4px 20px rgba(0,0,0,.5)}
+#toast.show{transform:translateX(-50%) translateY(0)}
+
+/* ── Game Over ─────────────────────────────────────── */
+#screen-gameover{gap:18px;
+  background:radial-gradient(circle at 50% 40%,rgba(30,10,60,1) 0%,var(--bg) 70%)}
+.gameover-title{font-size:42px;font-weight:900;text-align:center;
+  animation:title-appear .6s cubic-bezier(.22,.68,0,1.3)}
+@keyframes title-appear{from{transform:scale(.5);opacity:0}to{transform:scale(1);opacity:1}}
+.gameover-coins{font-size:28px;font-weight:700;text-align:center;letter-spacing:8px}
+.gameover-reason{color:var(--dim);font-size:13px}
+.gameover-rating{color:var(--gold);font-size:16px;font-weight:600}
+
+/* ── Log strip ─────────────────────────────────────── */
+.log-strip{position:absolute;bottom:0;left:0;right:0;padding:2px 8px;
+  background:rgba(0,0,0,.5);font-size:9px;color:var(--dim);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none;z-index:10}
+
+/* ── Misc helpers ──────────────────────────────────── */
+.clickable{cursor:pointer}
+.clickable:hover{opacity:.7}
+.text-gold{color:var(--gold)}
+.text-green{color:var(--green)}
+.text-red{color:var(--red)}

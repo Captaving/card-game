@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>Lily Wars</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div id="toast"></div>
+<div id="card-tooltip" class="card-tooltip" style="display:none"></div>
+
+<!-- ══════════════════ MAIN MENU ══════════════════ -->
+<div id="screen-main" class="screen active">
+  <div class="main-logo">⚜ LILY WARS</div>
+  <div class="main-subtitle">Card Battle Game</div>
+  <div id="player-rating" class="player-rating">Рейтинг: —</div>
+  <div class="main-buttons">
+    <button class="btn btn-primary" id="btn-find-match">⚔️ Найти матч</button>
+    <button class="btn btn-secondary" id="btn-deck-builder">🃏 Сборка колоды</button>
+    <button class="btn btn-secondary" id="btn-vs-bot">🤖 Игра с ботом</button>
+  </div>
+</div>
+
+<!-- ══════════════════ QUEUE ══════════════════ -->
+<div id="screen-queue" class="screen">
+  <div class="queue-wrap">
+    <div class="queue-spinner"></div>
+    <div id="queue-status" class="queue-status">Поиск соперника...</div>
+    <button class="btn btn-secondary" id="btn-cancel-queue">Отмена</button>
+  </div>
+</div>
+
+<!-- ══════════════════ DECK BUILDER ══════════════════ -->
+<div id="screen-deck" class="screen">
+  <div class="db-header">
+    <button class="db-back" id="db-back">‹</button>
+    <h2 id="db-title">Сборка колоды</h2>
+    <button class="db-save btn" id="db-save" disabled>Сохранить</button>
+  </div>
+
+  <!-- Faction tabs -->
+  <div class="db-faction-tabs" id="db-faction-tabs"></div>
+
+  <!-- Leader selection -->
+  <div class="db-leader-section">
+    <div class="db-leader-label">Выберите лидера</div>
+    <div class="db-leaders" id="db-leaders"></div>
+  </div>
+
+  <!-- Type filters -->
+  <div class="db-filters" id="db-filters">
+    <button class="db-filter-btn active" data-filter="all">Все</button>
+    <button class="db-filter-btn" data-filter="white">Белые</button>
+    <button class="db-filter-btn" data-filter="gray">Серые</button>
+    <button class="db-filter-btn" data-filter="purple">Фиолетовые</button>
+    <button class="db-filter-btn" data-filter="gold">Золотые</button>
+    <button class="db-filter-btn" data-filter="special">Особые</button>
+  </div>
+
+  <div class="db-body">
+    <!-- Card pool -->
+    <div class="db-pool" id="db-pool"></div>
+
+    <!-- Deck panel -->
+    <div class="db-deck-panel">
+      <div class="db-deck-stats">
+        <div class="db-deck-count"><span id="db-count">0</span><span>/25</span></div>
+        <div class="db-influence" id="db-influence">Влияние: 0/170</div>
+      </div>
+      <div class="db-deck-list" id="db-deck-list"></div>
+      <button class="db-clear-btn" id="db-clear">🗑 Очистить</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════ MULLIGAN ══════════════════ -->
+<div id="screen-mulligan" class="screen">
+  <div class="screen-title">Начальная рука</div>
+  <div id="match-opponent" class="opponent-label"></div>
+  <p class="mulligan-hint">Нажмите на карты для замены (до 3-х)</p>
+  <div id="mulligan-hand" class="mulligan-hand"></div>
+  <div id="mulligan-status" class="mulligan-status"></div>
+  <button class="btn btn-primary" id="btn-mulligan-confirm">Подтвердить</button>
+</div>
+
+<!-- ══════════════════ GAME BOARD ══════════════════ -->
+<div id="screen-game" class="screen">
+
+  <!-- TOP BAR -->
+  <div class="top-bar">
+    <div id="leader-opp" class="leader-slot"></div>
+    <div class="top-center">
+      <div id="round-display" class="round-display">РАУНД 1 / 3</div>
+      <div id="turn-indicator" class="turn-indicator">—</div>
+      <div class="coins-row">
+        <span id="coins-opp" class="coins opp-coins"></span>
+        <span class="coins-label">VS</span>
+        <span id="coins-me" class="coins me-coins"></span>
+      </div>
+    </div>
+    <div class="opp-info">
+      <div id="opp-name" class="opp-name">Соперник</div>
+      <div class="deck-info">
+        <span id="opp-hand-count">0</span>🂠
+        <span id="opp-deck-count">0</span>📚
+        <span id="opp-discard-btn" class="clickable" title="Отбой противника">
+          <span id="opp-discard-count">0</span>🗑
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- OPPONENT FIELD -->
+  <div class="field-section opp-section">
+    <div class="field-row" id="frow-opp-left">
+      <div class="row-label">←</div>
+      <div id="field-opp-left" class="field-row-cards"></div>
+      <div id="rs-opp-left" class="row-score">0</div>
+    </div>
+    <div class="field-row" id="frow-opp-right">
+      <div class="row-label">→</div>
+      <div id="field-opp-right" class="field-row-cards"></div>
+      <div id="rs-opp-right" class="row-score">0</div>
+    </div>
+  </div>
+
+  <!-- SCORE BAR -->
+  <div class="score-bar">
+    <div id="score-opp" class="score-number opp-score">0</div>
+    <div class="score-mid">
+      <button class="btn-pass" id="btn-pass">ПАС</button>
+    </div>
+    <div id="score-me" class="score-number me-score">0</div>
+  </div>
+
+  <!-- MY FIELD -->
+  <div class="field-section me-section">
+    <div class="field-row" id="frow-me-left">
+      <div class="row-label">←</div>
+      <div id="field-me-left" class="field-row-cards"></div>
+      <div id="rs-me-left" class="row-score">0</div>
+    </div>
+    <div class="field-row" id="frow-me-right">
+      <div class="row-label">→</div>
+      <div id="field-me-right" class="field-row-cards"></div>
+      <div id="rs-me-right" class="row-score">0</div>
+    </div>
+  </div>
+
+  <!-- BOTTOM BAR -->
+  <div class="bottom-bar">
+    <div id="leader-me" class="leader-slot"></div>
+    <div id="hand-container" class="hand-container"></div>
+    <div class="my-info">
+      <div>
+        <span id="my-deck-count">0</span>📚
+        <span id="my-discard-btn" class="clickable">
+          <span id="my-discard-count">0</span>🗑
+        </span>
+      </div>
+      <button class="btn-forfeit" id="btn-forfeit" title="Сдаться">🏳</button>
+    </div>
+  </div>
+
+  <div class="log-strip" id="log-strip"></div>
+</div>
+
+<!-- ══════════════════ GAME OVER ══════════════════ -->
+<div id="screen-gameover" class="screen">
+  <div id="gameover-title" class="gameover-title">—</div>
+  <div id="gameover-coins" class="gameover-coins"></div>
+  <div id="gameover-reason" class="gameover-reason"></div>
+  <div id="gameover-rating" class="gameover-rating"></div>
+  <button class="btn btn-primary" id="btn-play-again">Играть снова</button>
+</div>
+
+<!-- ══════════════════ MODALS ══════════════════ -->
+
+<!-- Row selector -->
+<div id="modal-row" class="modal" style="display:none">
+  <div class="modal-box">
+    <div class="modal-title">Выберите ряд</div>
+    <div class="modal-buttons">
+      <button class="btn btn-primary" id="row-btn-left">← Левый</button>
+      <button class="btn btn-primary" id="row-btn-right">Правый →</button>
+    </div>
+  </div>
+</div>
+
+<!-- Discard modal -->
+<div id="modal-discard" class="modal" style="display:none">
+  <div class="modal-box modal-wide">
+    <div class="modal-title" id="discard-modal-title">Отбой</div>
+    <div class="card-grid" id="discard-list"></div>
+    <button class="btn btn-secondary" id="discard-close">Закрыть</button>
+  </div>
+</div>
+
+<!-- Reveal modal -->
+<div id="modal-reveal" class="modal" style="display:none">
+  <div class="modal-box">
+    <div class="modal-title" id="reveal-modal-title">Карты противника</div>
+    <div class="card-grid" id="reveal-list"></div>
+    <button class="btn btn-secondary" id="reveal-close">Закрыть</button>
+  </div>
+</div>
+
+<!-- Target pick prompt -->
+<div id="modal-target" class="modal" style="display:none">
+  <div class="modal-box">
+    <div class="modal-title" id="target-modal-title">Выберите цель</div>
+    <div class="card-grid" id="target-list"></div>
+    <button class="btn btn-secondary" id="target-cancel">Отмена</button>
+  </div>
+</div>
+
+<!-- Bot faction picker -->
+<div id="modal-bot" class="modal" style="display:none">
+  <div class="modal-box">
+    <div class="modal-title">Игра с ботом</div>
+    <div style="font-size:12px;color:var(--dim);text-align:center">Выберите фракцию бота</div>
+    <div class="db-leaders" id="bot-faction-list"></div>
+    <button class="btn btn-secondary" id="bot-cancel">Отмена</button>
+  </div>
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/game.js"></script>
+</body>
+</html>
