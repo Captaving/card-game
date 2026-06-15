@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lily Wars — ККИ в Telegram</title>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="js/config.js"></script>
+    <script src="js/game.js"></script>
+    <script src="js/bot.js"></script>
+    <script src="js/deckbuilder.js"></script>
+</head>
+<body>
+    <!-- MAIN MENU -->
+    <div id="screen-main" class="screen active">
+        <h1>🌸 Lily Wars</h1>
+        <p style="margin-bottom: 30px; opacity: 0.85;">Коллекционная карточная игра</p>
+        
+        <button id="btn-online">⚔️ Игра онлайн (мультиплеер)</button>
+        <button id="btn-my-decks">🃏 Мои колоды</button>
+        <button id="btn-bot">🤖 Игра с ботом</button>
+        
+        <div style="margin-top: 40px; font-size: 0.85em; opacity: 0.6;">
+            Telegram Mini App • Версия 0.9
+        </div>
+    </div>
+
+    <!-- MY DECKS -->
+    <div id="screen-my-decks" class="screen">
+        <h2>🃏 Мои колоды</h2>
+        <div id="decks-list"></div>
+        
+        <button id="btn-new-deck">➕ Создать новую колоду</button>
+        <button id="btn-back-from-decks">← Назад в меню</button>
+    </div>
+
+    <!-- DECK BUILDER -->
+    <div id="screen-deck-builder" class="screen">
+        <h2>🛠️ Редактор колоды</h2>
+        
+        <div id="faction-select" style="margin-bottom: 15px;"></div>
+        
+        <div style="display: flex; gap: 20px; flex-wrap: wrap; justify-content: center;">
+            <!-- Available cards -->
+            <div style="flex: 1; min-width: 280px;">
+                <h3>Доступные карты</h3>
+                <div id="available-cards" style="min-height: 200px;"></div>
+            </div>
+            
+            <!-- Current deck -->
+            <div style="flex: 1; min-width: 280px;">
+                <h3>Ваша колода 
+                    <span id="deck-count" style="font-size:0.9em; color:#ffccff;">0/25</span>
+                    <span id="influence-count" style="font-size:0.9em; color:#aaffaa;">0/170</span>
+                </h3>
+                <div id="deck-cards" style="min-height: 180px; background: rgba(0,0,0,0.2); border-radius: 10px; padding: 10px;"></div>
+            </div>
+        </div>
+        
+        <div style="margin-top: 25px;">
+            <button id="btn-save-deck">💾 Сохранить колоду</button>
+            <button id="btn-back-to-menu">← Назад в меню</button>
+        </div>
+    </div>
+
+    <!-- GAME SCREEN -->
+    <div id="screen-game" class="screen">
+        <h2>🎴 Lily Wars — Бой</h2>
+        
+        <div id="game-info">
+            <div style="font-size:1.3em; margin-bottom:8px;">
+                ❤️ <span id="health-p0">30</span> 
+                <span style="margin:0 15px; color:#ff99ff;">vs</span> 
+                <span id="health-p1">30</span> ❤️
+            </div>
+            <div id="turn-info" style="font-size:1.1em; margin-bottom:6px;"></div>
+            <div id="player-role" style="font-weight:bold; color:#ffccff;"></div>
+        </div>
+        
+        <div id="game-log"></div>
+        
+        <div class="game-actions" style="margin: 20px 0;">
+            <button id="btn-play-card">🃏 Сыграть карту (демо)</button>
+            <button id="btn-end-turn">⏭️ Закончить ход</button>
+            <button id="btn-attack">⚔️ Атаковать (демо)</button>
+            <button id="btn-surrender" style="background:rgba(180,30,30,0.3); border-color:#ff6666;">🏳️ Сдаться</button>
+        </div>
+        
+        <button id="btn-back-to-menu-from-game" style="margin-top:10px; min-width:200px;">← Выйти в меню</button>
+        
+        <div style="margin-top:30px; font-size:0.8em; opacity:0.5;">
+            Демо-версия мультиплеера. Полная механика в разработке.
+        </div>
+    </div>
+
+    <!-- Toast notification -->
+    <div id="toast"></div>
+
+    <script>
+        // Telegram Mini App initialization
+        if (window.Telegram && window.Telegram.WebApp) {
+            const tg = window.Telegram.WebApp;
+            tg.ready();
+            tg.expand();
+            // Optional: set theme or header color
+            if (tg.setHeaderColor) tg.setHeaderColor('#1a0033');
+        }
+        
+        console.log('%c[Lily Wars] Client initialized', 'color:#ff99ff');
+    </script>
+</body>
+</html>
