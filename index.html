@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lily Wars • Карточная игра</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #0f172a;
+            color: white;
+            min-height: 100vh;
+            text-align: center;
+            margin: 0;
+        }
+        
+        .screen {
+            display: none;
+            padding: 40px 20px;
+            min-height: 100vh;
+        }
+        .screen.active {
+            display: block;
+        }
+
+        /* Главное меню точно как на скриншоте */
+        #screen-main {
+            background: #0f172a;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding-top: 50px;
+        }
+
+        #screen-main h1 {
+            font-size: 3.6em;
+            margin: 0 0 12px 0;
+            color: #c084fc;
+            text-shadow: 0 0 18px #c084fc, 0 0 35px #a855f7;
+        }
+
+        #screen-main p {
+            font-size: 1.3em;
+            margin-bottom: 30px;
+            opacity: 0.85;
+        }
+
+        .faction-logos {
+            display: flex;
+            gap: 26px;
+            margin-bottom: 40px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .faction-logos div {
+            text-align: center;
+        }
+
+        .faction-logos img {
+            width: 60px;
+            height: 60px;
+            object-fit: contain;
+            margin-bottom: 5px;
+        }
+
+        .faction-logos span {
+            font-size: 0.8em;
+            opacity: 0.9;
+            line-height: 1.15;
+        }
+
+        /* Кнопки точно как на скриншоте */
+        #screen-main button {
+            background: white;
+            color: #1e2937;
+            border: none;
+            padding: 17px 0;
+            border-radius: 16px;
+            font-size: 1.12em;
+            font-weight: 600;
+            margin: 8px 0;
+            width: 310px;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 4px 18px rgba(0, 0, 0, 0.12);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 9px;
+        }
+
+        #screen-main button:hover {
+            background: #f3e8ff;
+            transform: translateY(-1px);
+        }
+    </style>
+</head>
+<body>
+    <!-- ==================== ГЛАВНОЕ МЕНЮ ==================== -->
+    <div id="screen-main" class="screen active">
+        <h1>Lily Wars</h1>
+        <p>Коллекционная карточная игра</p>
+        
+        <!-- Логотипы фракций (без фона, текст прямо под фото) -->
+        <div style="display: flex; gap: 26px; margin-bottom: 38px; justify-content: center; flex-wrap: wrap;">
+            <div style="text-align: center;">
+                <img src="assets/factions/knights.png" alt="Рыцари Лилии" style="width: 62px; height: 62px; object-fit: contain; display: block; margin: 0 auto 5px;">
+                <span style="font-size: 0.82em; opacity: 0.9; line-height: 1.15;">Рыцари<br>Лилии</span>
+            </div>
+            <div style="text-align: center;">
+                <img src="assets/factions/black_lily.png" alt="Прислужники Чёрной Лилии" style="width: 62px; height: 62px; object-fit: contain; display: block; margin: 0 auto 5px;">
+                <span style="font-size: 0.82em; opacity: 0.9; line-height: 1.15;">Прислужники<br>Чёрной Лилии</span>
+            </div>
+            <div style="text-align: center;">
+                <img src="assets/factions/dryads.png" alt="Дриады Нидолион" style="width: 62px; height: 62px; object-fit: contain; display: block; margin: 0 auto 5px;">
+                <span style="font-size: 0.82em; opacity: 0.9; line-height: 1.15;">Дриады<br>Нидолион</span>
+            </div>
+            <div style="text-align: center;">
+                <img src="assets/factions/mages.png" alt="Орден Чародеев" style="width: 62px; height: 62px; object-fit: contain; display: block; margin: 0 auto 5px;">
+                <span style="font-size: 0.82em; opacity: 0.9; line-height: 1.15;">Орден<br>Чародеев</span>
+            </div>
+        </div>
+        
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 9px;">
+            <button onclick="startOnlineMatch()">⚔️ Играть онлайн</button>
+            <button onclick="showMyDecks()">🃏 Мои колоды</button>
+            <button onclick="startBotGame()">🤖 Играть с ботом</button>
+            <button onclick="showDeckBuilder()">✨ Создать новую колоду</button>
+        </div>
+        
+        <div style="margin-top: 65px; opacity: 0.5; font-size: 0.9em;">
+            Версия 0.9 • 4 фракции • 101 карта
+        </div>
+    </div>
+
+    <!-- Всплывающее окно с лором фракции -->
+    <div id="faction-lore-modal" onclick="hideFactionLore()" 
+         style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+                background: rgba(0,0,0,0.7); z-index: 9999; justify-content: center; align-items: center;">
+        <div onclick="event.stopImmediatePropagation()" 
+             style="background: #1e2937; padding: 30px 40px; border-radius: 16px; max-width: 420px; text-align: center; border: 2px solid #c084fc;">
+            <h3 id="lore-faction-name" style="margin-top: 0; color: #c084fc;"></h3>
+            <p id="lore-text" style="font-size: 1.05em; line-height: 1.5; margin: 20px 0;">
+                Скоро тут будет Лор данной фракции.
+            </p>
+            <button onclick="hideFactionLore()" 
+                    style="margin-top: 10px; background: #c084fc; color: #0f172a; border: none; 
+                           padding: 10px 24px; border-radius: 10px; font-weight: 600; cursor: pointer;">
+                Закрыть
+            </button>
+        </div>
+    </div>
+
+    <!-- Остальные экраны -->
+    <div id="screen-my-decks" class="screen">
+        <h1>🃏 Мои колоды</h1>
+        <div id="decks-list"></div>
+        <div style="margin-top: 30px;">
+            <button id="btn-new-deck-2">✨ Создать новую колоду</button>
+            <button id="btn-back-from-decks">← Назад в меню</button>
+        </div>
+    </div>
+
+    <div id="screen-deck-builder" class="screen">
+        <h1>✨ Конструктор колоды</h1>
+        <div id="faction-select" style="margin: 20px 0;"></div>
+        <div style="display: flex; gap: 40px; flex-wrap: wrap; justify-content: center;">
+            <div style="flex: 1; min-width: 320px; max-width: 420px;">
+                <div id="available-cards"><h3>Доступные карты</h3></div>
+            </div>
+            <div style="flex: 1; min-width: 320px; max-width: 420px;">
+                <h3>Ваша колода <span id="deck-count" style="color:#ffccff;">0/25</span></h3>
+                <div class="stats">Влияние: <span id="influence-count">0/170</span></div>
+                <div id="deck-cards" style="min-height: 200px; background: rgba(0,0,0,0.2); border-radius: 12px; padding: 15px;"></div>
+                <div style="margin-top: 20px;">
+                    <button id="btn-save-deck">💾 Сохранить колоду</button>
+                    <button id="btn-back-to-menu">← Назад в меню</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="screen-game" class="screen">
+        <h1>Игровой экран</h1>
+        <p>В разработке...</p>
+        <button onclick="showMainMenu()">← Назад в меню</button>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script src="js/config.js"></script>
+    <script src="js/game.js"></script>
+    <script src="js/bot.js"></script>
+    <script src="js/deckbuilder.js"></script>
+    
+    <script>
+        if (window.Telegram?.WebApp) {
+            Telegram.WebApp.ready();
+            Telegram.WebApp.expand();
+        }
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            const btnNewDeck2 = document.getElementById('btn-new-deck-2');
+            if (btnNewDeck2) btnNewDeck2.addEventListener('click', showDeckBuilder);
+            
+            if (typeof showMainMenu === 'function') showMainMenu();
+        });
+
+        // Функции для всплывающего лора фракций
+        function showFactionLore(factionName) {
+            document.getElementById('lore-faction-name').innerText = factionName;
+            document.getElementById('faction-lore-modal').style.display = 'flex';
+        }
+
+        function hideFactionLore() {
+            document.getElementById('faction-lore-modal').style.display = 'none';
+        }
+    </script>
+</body>
+</html>
