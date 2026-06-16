@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lily Wars • Карточная игра</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        /* Дополнительные стили для экранов */
+        .screen {
+            display: none;
+            padding: 20px;
+            min-height: 100vh;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        .screen.active {
+            display: block;
+        }
+        
+        .deck-item {
+            background: rgba(255,255,255,0.1);
+            border: 2px solid rgba(255,100,255,0.4);
+            border-radius: 12px;
+            padding: 16px;
+            margin: 10px 0;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .deck-item:hover {
+            background: rgba(255,100,255,0.2);
+            transform: translateY(-2px);
+        }
+        
+        .faction-btn {
+            background: rgba(255,255,255,0.08);
+            border: 2px solid rgba(255,100,255,0.5);
+            border-radius: 16px;
+            padding: 12px 20px;
+            margin: 10px;
+            color: white;
+            font-size: 1.05em;
+            cursor: pointer;
+            transition: all 0.3s;
+            min-width: 220px;
+            text-align: center;
+        }
+        .faction-btn:hover {
+            background: rgba(255,100,255,0.25);
+            border-color: #ff66ff;
+            transform: scale(1.03);
+        }
+        
+        .card {
+            background: linear-gradient(145deg, #2a1a4a, #1a0033);
+            border: 2px solid #ff66ff;
+            border-radius: 12px;
+            padding: 14px;
+            margin: 8px;
+            min-width: 160px;
+            max-width: 200px;
+            display: inline-block;
+            vertical-align: top;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            text-align: left;
+        }
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 25px rgba(255, 100, 255, 0.3);
+        }
+        .card .effect {
+            font-size: 0.85em;
+            color: #ffccff;
+            margin-top: 6px;
+            font-style: italic;
+        }
+        
+        .row-indicator {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 999px;
+            font-size: 0.75em;
+            margin-left: 6px;
+        }
+        .row-left { background: #3498db; }
+        .row-right { background: #e74c3c; }
+        .row-any { background: #9b59b6; }
+        
+        #deck-cards .card {
+            min-width: 120px;
+            font-size: 0.95em;
+        }
+        
+        .game-board {
+            display: flex;
+            gap: 40px;
+            justify-content: center;
+            margin: 30px 0;
+        }
+        .game-row {
+            background: rgba(0,0,0,0.3);
+            border: 3px solid #ff66ff;
+            border-radius: 16px;
+            padding: 15px;
+            min-width: 320px;
+            min-height: 180px;
+        }
+        .game-row h4 {
+            margin-bottom: 10px;
+            color: #ffccff;
+        }
+        
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #ff66ff;
+            color: #1a0033;
+            padding: 14px 28px;
+            border-radius: 999px;
+            font-weight: 600;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+            display: none;
+            z-index: 9999;
+        }
+        
+        h1 { font-size: 3.2em; }
+        .stats {
+            font-size: 1.3em;
+            margin: 15px 0;
+            background: rgba(0,0,0,0.25);
+            padding: 10px 20px;
+            border-radius: 12px;
+            display: inline-block;
+        }
+    </style>
+</head>
+<body>
+    <!-- ==================== ГЛАВНОЕ МЕНЮ ==================== -->
+    <div id="screen-main" class="screen active">
+        <h1>🌸 Lily Wars</h1>
+        <p style="font-size:1.4em; margin-bottom: 40px; opacity: 0.9;">Коллекционная карточная игра</p>
+        
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 12px;">
+            <button id="btn-online">⚔️ Играть онлайн</button>
+            <button id="btn-my-decks">🃏 Мои колоды</button>
+            <button id="btn-bot">🤖 Играть с ботом</button>
+            <button id="btn-new-deck">✨ Создать новую колоду</button>
+        </div>
+        
+        <div style="margin-top: 60px; opacity: 0.6; font-size: 0.9em;">
+            Версия 0.8 • 4 фракции • 101 карта
+        </div>
+    </div>
+
+    <!-- ==================== МОИ КОЛОДЫ ==================== -->
+    <div id="screen-my-decks" class="screen">
+        <h1>🃏 Мои колоды</h1>
+        
+        <div id="decks-list"></div>
+        
+        <div style="margin-top: 30px;">
+            <button id="btn-new-deck-2">✨ Создать новую колоду</button>
+            <button id="btn-back-from-decks">← Назад в меню</button>
+        </div>
+    </div>
+
+    <!-- ==================== КОНСТРУКТОР КОЛОД ==================== -->
+    <div id="screen-deck-builder" class="screen">
+        <h1>✨ Конструктор колоды</h1>
+        
+        <div id="faction-select" style="margin: 20px 0;"></div>
+        
+        <div style="display: flex; gap: 40px; flex-wrap: wrap; justify-content: center;">
+            
+            <!-- Доступные карты -->
+            <div style="flex: 1; min-width: 320px; max-width: 420px;">
+                <div id="available-cards">
+                    <h3>Доступные карты</h3>
+                </div>
+            </div>
+            
+            <!-- Текущая колода -->
+            <div style="flex: 1; min-width: 320px; max-width: 420px;">
+                <h3>Ваша колода 
+                    <span id="deck-count" style="color:#ffccff;">0/25</span>
+                </h3>
+                
+                <div class="stats">
+                    Влияние: <span id="influence-count">0/170</span>
+                </div>
+                
+                <div id="deck-cards" style="min-height: 200px; background: rgba(0,0,0,0.2); border-radius: 12px; padding: 15px;">
+                    <!-- Карты колоды сюда -->
+                </div>
+                
+                <div style="margin-top: 20px;">
+                    <button id="btn-save-deck">💾 Сохранить колоду</button>
+                    <button id="btn-back-to-menu">← Назад в меню</button>
+                </div>
+            </div>
+            
+        </div>
+    </div>
+
+    <!-- ==================== ИГРОВОЙ ЭКРАН ==================== -->
+    <div id="screen-game" class="screen">
+        <h1>⚔️ Сражение</h1>
+        
+        <div style="margin-bottom: 20px;">
+            <span id="game-status" style="font-size:1.3em; color:#ffccff;">Игра началась!</span>
+        </div>
+        
+        <!-- Поле боя (заглушка, будет развиваться в D) -->
+        <div class="game-board">
+            <div class="game-row" id="player-row">
+                <h4>🛡️ Твои карты</h4>
+                <div id="player-board" style="min-height:120px;"></div>
+            </div>
+            
+            <div class="game-row" id="opponent-row">
+                <h4>👹 Карты противника</h4>
+                <div id="opponent-board" style="min-height:120px;"></div>
+            </div>
+        </div>
+        
+        <div style="margin: 30px 0;">
+            <button onclick="endTurn()">Закончить ход</button>
+            <button onclick="surrender()">Сдаться</button>
+        </div>
+        
+        <div style="margin-top: 40px;">
+            <button onclick="showMainMenu()">← Выйти в меню</button>
+        </div>
+    </div>
+
+    <!-- Toast уведомления -->
+    <div id="toast" class="toast"></div>
+
+    <!-- Скрипты -->
+    <script src="js/config.js"></script>
+    <script src="js/game.js"></script>
+    <script src="js/bot.js"></script>
+    <script src="js/deckbuilder.js"></script>
+    
+    <script>
+        // Telegram Mini App инициализация
+        if (window.Telegram?.WebApp) {
+            Telegram.WebApp.ready();
+            Telegram.WebApp.expand();
+            Telegram.WebApp.setHeaderColor('#1a0033');
+        }
+        
+        // Дополнительные привязки кнопок, которых нет в game.js / deckbuilder.js
+        document.addEventListener('DOMContentLoaded', () => {
+            const btnNewDeck2 = document.getElementById('btn-new-deck-2');
+            if (btnNewDeck2) {
+                btnNewDeck2.addEventListener('click', showDeckBuilder);
+            }
+            
+            // Показываем главное меню при старте
+            if (typeof showMainMenu === 'function') {
+                showMainMenu();
+            }
+            
+            console.log('%c[ Lily Wars ] Полный клиент загружен', 'color:#ff66ff');
+        });
+        
+        // Глобальные функции-заглушки для игры (будут заменены в D)
+        window.endTurn = () => {
+            if (window.showToast) showToast("Ход закончен (в разработке)");
+        };
+        
+        window.surrender = () => {
+            if (confirm("Сдаться?")) {
+                if (window.showToast) showToast("Вы сдались");
+                showMainMenu();
+            }
+        };
+    </script>
+</body>
+</html>
