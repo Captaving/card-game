@@ -1,0 +1,50 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', sans-serif;
+    background: linear-gradient(135deg, #1a0033, #330066);
+    color: white;
+    min-height: 100vh;
+    text-align: center;
+}
+
+.screen {
+    display: none;
+    padding: 20px;
+    min-height: 100vh;
+}
+
+.screen.active {
+    display: block;
+}
+
+h1 {
+    font-size: 2.8em;
+    margin: 40px 0;
+    text-shadow: 0 0 20px rgba(255, 100, 255, 0.8);
+}
+
+button {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    border: 2px solid rgba(255, 100, 255, 0.6);
+    padding: 15px 30px;
+    margin: 12px;
+    font-size: 1.1em;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.3s;
+    width: 280px;
+}
+
+button:hover {
+    background: rgba(255, 100, 255, 0.3);
+    transform: scale(1.05);
+    border-color: #ff66ff;
+}
+
+/* Можно добавить больше стилей позже */
