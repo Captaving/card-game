@@ -1,0 +1,396 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', 'Roboto', sans-serif;
+    background: #1c140f;
+    background-image: 
+        linear-gradient(rgba(60, 40, 20, 0.6), rgba(30, 20, 15, 0.75)),
+        url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%22100%22><rect width=%22100%22 height=%22100%22 fill=%22%23281f18%22/><path d=%22M0 0 L100 100 M100 0 L0 100%22 stroke=%22%233c2a1f%22 stroke-width=%221%22 opacity=%220.3%22/></svg>');
+    background-size: cover;
+    color: #e8d5b7;
+    min-height: 100vh;
+    overflow-x: hidden;
+}
+
+.screen {
+    display: none;
+    padding: 15px;
+    min-height: 100vh;
+}
+
+.screen.active {
+    display: block;
+}
+
+h1, h2, h3 {
+    text-shadow: 0 0 15px rgba(180, 100, 255, 0.6);
+}
+
+h1 {
+    font-size: 2.6em;
+    margin: 20px 0 30px;
+    color: #ffccff;
+}
+
+button {
+    background: linear-gradient(145deg, #4a0080, #6a00b3);
+    color: white;
+    border: 2px solid #c77dff;
+    padding: 14px 28px;
+    margin: 10px;
+    font-size: 1.05em;
+    border-radius: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    min-width: 220px;
+}
+
+button:hover {
+    background: linear-gradient(145deg, #6a00b3, #9c27b0);
+    transform: translateY(-2px) scale(1.02);
+    border-color: #ff99ff;
+    box-shadow: 0 6px 20px rgba(156, 39, 176, 0.5);
+}
+
+button:active {
+    transform: scale(0.98);
+}
+
+.faction-btn {
+    width: 220px;
+    height: 220px;
+    background-size: cover;
+    background-position: center;
+    border-radius: 50%;
+    border: 4px solid #c77dff;
+    position: relative;
+    overflow: hidden;
+    margin: 15px;
+    box-shadow: 0 0 30px rgba(180,100,255,0.7);
+}
+
+.faction-btn span {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(0,0,0,0.75);
+    padding: 8px;
+    font-size: 1.1em;
+    font-weight: bold;
+}
+
+/* Card styles - small rectangular like real cards */
+.card {
+    width: 118px;
+    min-height: 158px;
+    background: linear-gradient(180deg, #2c1f4a, #1f1433);
+    border: 3px solid #7b5aa6;
+    border-radius: 10px;
+    padding: 8px 6px;
+    margin: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    overflow: hidden;
+    font-size: 0.82em;
+}
+
+.card:hover {
+    transform: translateY(-4px) scale(1.03);
+    box-shadow: 0 8px 20px rgba(180,100,255,0.4);
+    border-color: #c77dff;
+}
+
+.card .card-header {
+    font-weight: bold;
+    font-size: 0.9em;
+    margin-bottom: 4px;
+    color: #ffccff;
+    text-align: center;
+    line-height: 1.1;
+    min-height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.card .stats {
+    display: flex;
+    justify-content: space-between;
+    margin: 4px 0;
+    font-weight: bold;
+}
+
+.card .power {
+    background: #c62828;
+    color: white;
+    padding: 1px 7px;
+    border-radius: 6px;
+    font-size: 1.1em;
+}
+
+.card .influence {
+    background: #1565c0;
+    color: white;
+    padding: 1px 7px;
+    border-radius: 6px;
+    font-size: 1.1em;
+}
+
+.card .type-line {
+    font-size: 0.7em;
+    color: #b39ddb;
+    margin-bottom: 3px;
+}
+
+.card .effect {
+    font-size: 0.72em;
+    color: #e1bee7;
+    flex-grow: 1;
+    overflow-y: auto;
+    line-height: 1.25;
+    margin-top: 2px;
+    padding-right: 2px;
+}
+
+.card .max-copies {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    background: rgba(255,215,0,0.9);
+    color: #1a0033;
+    font-size: 0.65em;
+    font-weight: bold;
+    padding: 1px 5px;
+    border-radius: 4px;
+}
+
+.card.white { border-color: #90a4ae; }
+.card.gray { border-color: #607d8b; }
+.card.purple { border-color: #ab47bc; }
+.card.gold { 
+    border-color: #ffc107; 
+    box-shadow: 0 0 12px rgba(255,193,7,0.6);
+}
+.card.special { border-color: #ff7043; }
+
+.card.in-deck {
+    border-color: #4caf50;
+    background: linear-gradient(180deg, #1b3a2f, #12261f);
+}
+
+/* Deck builder layout */
+#available-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(122px, 1fr));
+    gap: 8px;
+    max-height: 62vh;
+    overflow-y: auto;
+    padding: 10px;
+    background: rgba(0,0,0,0.2);
+    border-radius: 16px;
+    margin: 10px 0;
+}
+
+#deck-cards {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    min-height: 80px;
+    padding: 10px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 12px;
+    border: 2px dashed #7b5aa6;
+}
+
+.deck-stats {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    margin: 15px 0;
+    font-size: 1.3em;
+}
+
+.deck-stats span {
+    background: rgba(255,255,255,0.1);
+    padding: 6px 18px;
+    border-radius: 20px;
+}
+
+/* Modal for copy selection */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 100;
+    left: 0; top: 0;
+    width: 100%; height: 100%;
+    background: rgba(0,0,0,0.85);
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-content {
+    background: #2c1f4a;
+    padding: 25px 30px;
+    border-radius: 16px;
+    border: 3px solid #c77dff;
+    text-align: center;
+    max-width: 320px;
+    width: 90%;
+}
+
+.modal-content h3 {
+    margin-bottom: 15px;
+    color: #ffccff;
+}
+
+.copy-options {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin: 15px 0;
+}
+
+.copy-btn {
+    width: 52px;
+    height: 52px;
+    font-size: 1.4em;
+    border-radius: 50%;
+}
+
+/* Game board styles */
+.game-container {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    max-width: 1100px;
+    margin: 0 auto;
+}
+
+.lanes {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+}
+
+.lane {
+    flex: 1;
+    min-height: 280px;
+    background: rgba(30,20,60,0.6);
+    border: 3px solid #5c6bc0;
+    border-radius: 16px;
+    padding: 12px;
+    position: relative;
+}
+
+.lane.left { border-color: #42a5f5; }
+.lane.right { border-color: #ef5350; }
+
+.lane h4 {
+    text-align: center;
+    margin-bottom: 8px;
+    font-size: 1.1em;
+}
+
+.lane .cards {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    min-height: 180px;
+}
+
+.hand {
+    background: rgba(0,0,0,0.3);
+    padding: 12px;
+    border-radius: 16px;
+    min-height: 170px;
+}
+
+.hand h4 {
+    margin-bottom: 8px;
+}
+
+.hand .cards {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #4a148c;
+    color: white;
+    padding: 12px 24px;
+    border-radius: 30px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+    z-index: 200;
+    display: none;
+}
+
+/* Faction select */
+.faction-select {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 20px;
+}
+
+/* Improved circular faction logos without extra background feel */
+.faction-btn {
+    width: 220px;
+    height: 220px;
+    background-size: cover;
+    background-position: center;
+    border-radius: 50% !important;
+    border: 5px solid #c77dff;
+    position: relative;
+    overflow: hidden;
+    margin: 12px;
+    box-shadow: 0 0 35px rgba(180, 100, 255, 0.6),
+                inset 0 0 40px rgba(0,0,0,0.35);
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+    cursor: pointer;
+}
+
+.faction-btn:hover {
+    transform: scale(1.06);
+    box-shadow: 0 0 50px rgba(180, 100, 255, 0.85);
+}
+
+.faction-btn span {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(to top, rgba(0,0,0,0.88), rgba(0,0,0,0.35));
+    padding: 11px 8px 9px;
+    font-size: 1.05em;
+    font-weight: 600;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.9);
+    color: #fff;
+}
+
+/* Special styling for main menu faction logos - cleaner look */
+#main-faction-logos .faction-btn {
+    width: 158px;
+    height: 158px;
+    border-width: 6px;
+    box-shadow: 0 0 28px rgba(180, 100, 255, 0.55);
+}
+
+#main-faction-logos .faction-btn:hover {
+    box-shadow: 0 0 40px rgba(180, 100, 255, 0.9);
+}
