@@ -1,0 +1,343 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', 'Roboto', sans-serif;
+    background: #1c140f;
+    color: #e8d5b7;
+    min-height: 100vh;
+    overflow-x: hidden;
+}
+
+.screen {
+    display: none;
+    padding: 15px;
+    min-height: 100vh;
+}
+.screen.active { display: block; }
+
+/* ===== MAIN MENU — battlefield background ===== */
+#screen-main {
+    background:
+        linear-gradient(rgba(10,5,0,0.55), rgba(10,5,0,0.72)),
+        url('images/bg_battle.jpg') center/cover no-repeat fixed;
+    text-align: center;
+}
+
+#screen-main h1 {
+    font-size: 2.8em;
+    margin: 30px 0 10px;
+    color: #fff;
+    text-shadow: 0 0 30px rgba(180,100,255,0.7), 0 2px 8px rgba(0,0,0,0.9);
+    letter-spacing: 0.04em;
+}
+
+/* ===== DECK BUILDER — parchment background ===== */
+#screen-deck-builder {
+    background:
+        linear-gradient(rgba(8,4,2,0.62), rgba(8,4,2,0.72)),
+        url('images/bg_parchment.jpg') center/cover no-repeat fixed;
+}
+
+#screen-deck-builder h2 {
+    text-align: center;
+    color: #f5e6c8;
+    font-size: 1.7em;
+    margin-bottom: 10px;
+    text-shadow: 0 0 12px rgba(200,150,80,0.5);
+}
+
+/* ===== GHOST BUTTONS (white outline, transparent fill) ===== */
+button {
+    background: transparent;
+    color: #fff;
+    border: 2px solid rgba(255,255,255,0.55);
+    padding: 14px 28px;
+    margin: 8px;
+    font-size: 1.05em;
+    border-radius: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    min-width: 200px;
+    letter-spacing: 0.02em;
+}
+
+button:hover {
+    background: rgba(255,255,255,0.1);
+    border-color: rgba(255,255,255,0.85);
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: 0 6px 18px rgba(255,255,255,0.15);
+}
+
+button:active {
+    transform: scale(0.97);
+    background: rgba(255,255,255,0.06);
+}
+
+/* Special colored buttons */
+#btn-save-deck {
+    border-color: rgba(100,200,100,0.6);
+    color: #a5d6a7;
+}
+#btn-save-deck:hover {
+    background: rgba(100,200,100,0.12);
+    border-color: rgba(100,200,100,0.9);
+}
+
+h1, h2, h3 {
+    text-shadow: 0 0 15px rgba(180, 100, 255, 0.5);
+}
+h1 { font-size: 2.6em; margin: 20px 0 30px; color: #ffccff; }
+
+/* ===== FACTION BUTTONS ===== */
+.faction-btn {
+    width: 160px;
+    height: 160px;
+    background-size: cover;
+    background-position: center;
+    border-radius: 50% !important;
+    border: 4px solid rgba(200,150,255,0.8);
+    position: relative;
+    overflow: hidden;
+    margin: 12px;
+    box-shadow: 0 0 28px rgba(180,100,255,0.5);
+    transition: transform 0.22s, box-shadow 0.22s;
+    cursor: pointer;
+}
+.faction-btn:hover {
+    transform: scale(1.07);
+    box-shadow: 0 0 45px rgba(180,100,255,0.85);
+    border-color: #fff;
+}
+.faction-btn.active {
+    border-color: #ffd740;
+    box-shadow: 0 0 30px rgba(255,215,64,0.7);
+}
+.faction-btn span {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    background: linear-gradient(to top, rgba(0,0,0,0.88), transparent);
+    padding: 10px 6px 8px;
+    font-size: 0.88em;
+    font-weight: 600;
+    color: #fff;
+    text-align: center;
+}
+
+#main-faction-logos .faction-btn {
+    width: 150px; height: 150px;
+}
+
+.faction-select {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 16px;
+}
+
+/* ===== CARDS ===== */
+.card {
+    width: 114px;
+    min-height: 152px;
+    background: linear-gradient(180deg, #2c1f4a, #1a1030);
+    border: 2px solid #7b5aa6;
+    border-radius: 10px;
+    padding: 7px 6px;
+    margin: 5px;
+    cursor: pointer;
+    transition: transform 0.18s, box-shadow 0.18s;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.5);
+    overflow: hidden;
+    font-size: 0.8em;
+}
+.card:hover {
+    transform: translateY(-5px) scale(1.04);
+    box-shadow: 0 10px 24px rgba(180,100,255,0.35);
+    border-color: #c77dff;
+    z-index: 2;
+}
+.card .card-header {
+    font-weight: bold;
+    font-size: 0.88em;
+    margin-bottom: 3px;
+    color: #ffccff;
+    text-align: center;
+    line-height: 1.15;
+    min-height: 30px;
+    display: flex; align-items: center; justify-content: center;
+}
+.card .stats {
+    display: flex;
+    justify-content: space-between;
+    margin: 3px 0;
+    font-weight: bold;
+}
+.card .power {
+    background: #c62828; color: white;
+    padding: 1px 6px; border-radius: 5px; font-size: 1.05em;
+}
+.card .influence {
+    background: #1565c0; color: white;
+    padding: 1px 6px; border-radius: 5px; font-size: 1.05em;
+}
+.card .type-line {
+    font-size: 0.68em; color: #b39ddb; margin-bottom: 3px;
+}
+.card .effect {
+    font-size: 0.7em; color: #e1bee7; flex-grow: 1;
+    overflow-y: auto; line-height: 1.25; margin-top: 2px;
+}
+.card .max-copies {
+    position: absolute; top: 3px; right: 3px;
+    background: rgba(255,215,0,0.88); color: #1a0033;
+    font-size: 0.63em; font-weight: bold;
+    padding: 1px 4px; border-radius: 4px;
+}
+.card.white  { border-color: #90a4ae; }
+.card.gray   { border-color: #607d8b; }
+.card.purple { border-color: #ab47bc; }
+.card.gold   { border-color: #ffc107; box-shadow: 0 0 10px rgba(255,193,7,0.5); }
+.card.special{ border-color: #ff7043; }
+.card.in-deck{
+    border-color: #4caf50;
+    background: linear-gradient(180deg, #1b3a2f, #102418);
+}
+
+/* Card tooltip */
+.card-tooltip {
+    font-family: 'Segoe UI', sans-serif;
+    color: #e8d5b7;
+}
+
+/* ===== DECK BUILDER LAYOUT ===== */
+#available-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+    gap: 6px;
+    max-height: 60vh;
+    overflow-y: auto;
+    padding: 10px;
+    background: rgba(0,0,0,0.22);
+    border-radius: 14px;
+    margin: 8px 0;
+}
+#deck-cards {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    min-height: 80px;
+    padding: 10px;
+    background: rgba(255,255,255,0.04);
+    border-radius: 12px;
+    border: 2px dashed rgba(120,80,180,0.5);
+}
+.deck-stats {
+    display: flex; gap: 18px; justify-content: center;
+    margin: 12px 0; font-size: 1.2em;
+}
+.deck-stats span {
+    background: rgba(255,255,255,0.08);
+    padding: 5px 16px; border-radius: 18px;
+}
+
+/* ===== MODALS ===== */
+.modal {
+    display: none;
+    position: fixed; z-index: 100;
+    left: 0; top: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.87);
+    align-items: center; justify-content: center;
+}
+.modal-content {
+    background: rgba(30,14,48,0.97);
+    padding: 24px 28px;
+    border-radius: 16px;
+    border: 2px solid rgba(200,150,255,0.5);
+    text-align: center;
+    max-width: 340px; width: 92%;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.7);
+}
+.modal-content h3 { margin-bottom: 12px; color: #ffccff; }
+
+.copy-options { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin: 14px 0; }
+.copy-btn {
+    width: 52px; height: 52px;
+    font-size: 1.4em; border-radius: 50%;
+    min-width: auto;
+    border: 2px solid rgba(200,150,255,0.6);
+    padding: 0;
+}
+
+/* ===== GAME BOARD ===== */
+.game-container {
+    display: flex; flex-direction: column;
+    gap: 12px; max-width: 1100px; margin: 0 auto;
+}
+.lanes { display: flex; gap: 16px; justify-content: center; }
+.lane {
+    flex: 1; min-height: 240px;
+    background: rgba(20,15,40,0.55);
+    border: 2px solid #5c6bc0;
+    border-radius: 14px; padding: 10px;
+}
+.lane.left { border-color: #42a5f5; }
+.lane.right { border-color: #ef5350; }
+.lane h4 { text-align: center; margin-bottom: 6px; font-size: 1em; }
+.lane .cards { display: flex; flex-wrap: wrap; gap: 5px; min-height: 170px; }
+.hand { background: rgba(0,0,0,0.28); padding: 10px; border-radius: 14px; min-height: 160px; }
+.hand h4 { margin-bottom: 8px; }
+.hand .cards { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* ===== TOAST ===== */
+.toast {
+    position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%);
+    background: rgba(30,14,48,0.97); color: #e8d5b7;
+    padding: 11px 22px; border-radius: 28px;
+    border: 1px solid rgba(200,150,255,0.4);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+    z-index: 500; display: none; font-size: 0.95em;
+    max-width: 90vw; text-align: center;
+}
+
+/* ===== OTHER SCREENS ===== */
+#screen-my-decks {
+    background: linear-gradient(rgba(10,5,20,0.88), rgba(10,5,20,0.95)),
+                url('images/bg_battle.jpg') center/cover no-repeat fixed;
+    text-align: center;
+}
+#screen-game {
+    background: #0e0b18;
+    padding: 10px;
+}
+
+/* ===== MOBILE ===== */
+@media (max-width: 768px) {
+    #screen-main h1 { font-size: 2.1em; }
+    h2 { font-size: 1.3em; }
+    
+    .faction-btn { width: 110px !important; height: 110px !important; margin: 6px; }
+    #main-faction-logos .faction-btn { width: 100px !important; height: 100px !important; }
+    
+    button { width: 100%; max-width: 100%; padding: 15px 20px; font-size: 1em; margin: 6px 0; }
+    .copy-btn { width: 48px; height: 48px; font-size: 1.2em; }
+    
+    .lanes { flex-direction: column !important; gap: 10px; }
+    .lane { min-height: 170px; padding: 8px; }
+    
+    .card { width: 88px; min-height: 116px; font-size: 0.7em; margin: 3px; }
+    
+    .deck-stats { flex-direction: column; gap: 6px; }
+    
+    #player-hand { flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    
+    .modal-content button { width: auto; min-width: 120px; }
+    
+    #available-cards { grid-template-columns: repeat(auto-fill, minmax(94px, 1fr)); }
+}
