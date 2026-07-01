@@ -2,6 +2,11 @@
 let currentDeckForGame = null;
 let savedDecks = JSON.parse(localStorage.getItem('lilyDecks')) || [];
 
+// Timer variables
+let turnTimer = null;
+let timeLeft = 30;
+let isMobileDevice = false;
+
 const FACTION_LORE = {
     knights: "Рыцари Цветка Лилии — благородный орден защитников королевства. Они верны королю и Лилии, сражаются с честью и дисциплиной. Их щиты и мечи защищают земли от тьмы.",
     blacklily: "Прислужники Черной Лилии — тёмный культ, поклоняющийся древней силе чёрной лилии. Они призывают нежить, демонов и проклятых воинов. Их цель — погрузить мир в вечную тьму.",
@@ -9,55 +14,54 @@ const FACTION_LORE = {
     wizards: "Орден Чародеев — могущественные маги, изучающие все школы магии. Они используют эликсиры, заклинания и артефакты. Их сила в знании и контроле над реальностью."
 };
 
-// ==================== GAME STATE ====================
-let G = {}; // main game state
+// ==================== DEVICE DETECTION ====================
+function detectDevice() {
+    isMobileDevice = window.innerWidth <= 768 || 
+                     /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    
+    if (isMobileDevice) {
+        document.body.classList.add('mobile-device');
+        setupMobileInterface();
+    } else {
+        document.body.classList.remove('mobile-device');
+    }
+}
 
+// ==================== GAME STATE ====================
 function initGameState(playerDeckData) {
     const botFaction = Object.keys(FACTIONS).find(f => f !== playerDeckData.faction) || 'knights';
     let botCards = [...FACTIONS[botFaction].cards];
     while (botCards.length < 25) {
         botCards.push({...botCards[Math.floor(Math.random() * botCards.length)]});
     }
-
+    
     G = {
-        // Round tracking
-        round: 1,          // 1-3
+        round: 1,
         playerSwords: 0,
         botSwords: 0,
-
-        // Turn state
         playerPassed: false,
         botPassed: false,
         playerHasPlayedThisTurn: false,
         leaderUsed: false,
         botLeaderUsed: false,
-
-        // Mulligan
-        phase: 'mulligan', // mulligan | play | roundEnd | gameOver
+        phase: 'mulligan',
         mulliganCount: 0,
         maxMulligan: 3,
-
-        // Decks / hands
         playerDeckFull: [...playerDeckData.cards],
         playerDeck: [],
         playerHand: [],
         playerLeft: [],
         playerRight: [],
         playerDiscard: [],
-
         botDeck: botCards,
         botHand: [],
         botLeft: [],
         botRight: [],
         botDiscard: [],
-
-        // Leader
         playerLeader: playerDeckData.leader || getFactionLeader(playerDeckData.faction),
         botLeader: getFactionLeader(botFaction),
         playerFaction: playerDeckData.faction,
         botFaction: botFaction,
-
-        // Score per round (total power on field)
         playerRoundScore: 0,
         botRoundScore: 0,
     };
@@ -66,7 +70,6 @@ function initGameState(playerDeckData) {
     G.playerDeck = [...G.playerDeckFull];
     shuffleArray(G.botDeck);
 
-    // Draw starting hands
     G.playerHand = G.playerDeck.splice(0, 10);
     G.botHand = G.botDeck.splice(0, 10);
 }
@@ -78,13 +81,113 @@ function shuffleArray(arr) {
     }
 }
 
+// ==================== TIMER ====================
+function startTurnTimer() {
+    clearInterval(turnTimer);
+    timeLeft = 30;
+    updateTimerDisplay();
+    
+    turnTimer = setInterval(() => {
+        timeLeft--;
+        updateTimerDisplay();
+        
+        if (timeLeft <= 0) {
+            clearInterval(turnTimer);
+            autoPass();
+        }
+    }, 1000);
+}
+
+function updateTimerDisplay() {
+    const timerEl = document.getElementById('turn-timer');
+    const timerValue = document.getElementById('timer-value');
+    
+    if (timerEl && timerValue) {
+        timerEl.style.display = 'block';
+        timerValue.textContent = timeLeft;
+        
+        if (timeLeft <= 10) {
+            timerEl.classList.add('urgent');
+        } else {
+            timerEl.classList.remove('urgent');
+        }
+    }
+}
+
+function hideTimer() {
+    const timerEl = document.getElementById('turn-timer');
+    if (timerEl) {
+        timerEl.style.display = 'none';
+    }
+    clearInterval(turnTimer);
+}
+
+function autoPass() {
+    if (!G.playerPassed) {
+        playerPass();
+        showToast('⏱️ Время вышло! Автоматический пас.');
+    }
+}
+
+// ==================== MOBILE INTERFACE ====================
+function setupMobileInterface() {
+    const handBtn = document.getElementById('mobile-btn-hand');
+    const leaderBtn = document.getElementById('mobile-btn-leader');
+    const passBtn = document.getElementById('mobile-btn-pass');
+    const surrenderBtn = document.getElementById('mobile-btn-surrender');
+    const popupBtn = document.getElementById('hand-popup-btn');
+    
+    if (handBtn) handBtn.onclick = toggleHandPopup;
+    if (leaderBtn) leaderBtn.onclick = () => {
+        if (!G.leaderUsed && G.playerLeader) {
+            showLeaderAbilityModal();
+        } else {
+            showToast('Умение уже использовано!');
+        }
+    };
+    if (passBtn) passBtn.onclick = playerPass;
+    if (surrenderBtn) surrenderBtn.onclick = surrenderGame;
+    if (popupBtn) popupBtn.onclick = toggleHandPopup;
+}
+
+function toggleHandPopup() {
+    const popup = document.getElementById('hand-popup');
+    if (popup) {
+        popup.classList.toggle('active');
+        if (popup.classList.contains('active')) {
+            renderMobileHand();
+        }
+    }
+}
+
+function renderMobileHand() {
+    const container = document.getElementById('mobile-hand-cards');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    G.playerHand.forEach((card, idx) => {
+        const el = createCardElement(card, false);
+        el.style.width = '70px';
+        el.style.minHeight = '100px';
+        el.style.fontSize = '0.65em';
+        el.onclick = () => {
+            toggleHandPopup();
+            showLaneSelection(idx);
+        };
+        container.appendChild(el);
+    });
+}
+
 // ==================== SCREENS ====================
 function showMainMenu() {
+    hideTimer();
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     document.getElementById('screen-main').classList.add('active');
+    detectDevice();
 }
 
 function showMyDecks() {
+    hideTimer();
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     document.getElementById('screen-my-decks').classList.add('active');
     renderDecksList();
@@ -93,7 +196,7 @@ function showMyDecks() {
 function renderDecksList() {
     const container = document.getElementById('decks-list');
     container.innerHTML = '<h3 style="margin-bottom:15px;">Ваши колоды</h3>';
-
+    
     if (savedDecks.length === 0) {
         container.innerHTML += `
             <p style="color:#aaa; margin:30px 0;">У вас пока нет сохранённых колод.</p>
@@ -169,19 +272,18 @@ function startMulliganPhase() {
         showToast("Нужно минимум 10 карт в колоде!");
         return;
     }
-
+    
     initGameState(currentDeckForGame);
-
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     document.getElementById('screen-game').classList.add('active');
-
+    detectDevice();
     renderMulliganScreen();
 }
 
 function renderMulliganScreen() {
     const container = document.getElementById('game-board');
     const leader = G.playerLeader;
-
+    
     let html = `
         <div style="max-width:900px; margin:0 auto; padding:20px;">
             <h2 style="text-align:center; color:#d4af37; margin-bottom:6px;">Подготовка к игре</h2>
@@ -190,12 +292,13 @@ function renderMulliganScreen() {
             </p>
 
             ${leader ? `
-            <div style="background:rgba(180,100,255,0.1); border:2px solid rgba(200,150,255,0.4); border-radius:14px;
-                        padding:14px 20px; margin-bottom:20px; max-width:600px; margin-left:auto; margin-right:auto;">
-                <div style="color:#ffd740; font-size:0.8em; margin-bottom:4px;">ВАШИ ЛИДЕР</div>
-                <div style="color:#fff; font-weight:bold; font-size:1.1em;">${leader.name}</div>
-                <div style="color:#d4c5a9; font-size:0.85em; margin-top:4px;">${leader.effect}</div>
-            </div>` : ''}
+                <div style="background:rgba(180,100,255,0.1); border:2px solid rgba(200,150,255,0.4); border-radius:14px;
+                            padding:14px 20px; margin-bottom:20px; max-width:600px; margin-left:auto; margin-right:auto;">
+                    <div style="color:#ffd740; font-size:0.8em; margin-bottom:4px;">ВАШИ ЛИДЕР</div>
+                    <div style="color:#fff; font-weight:bold; font-size:1.1em;">${leader.name}</div>
+                    <div style="color:#d4c5a9; font-size:0.85em; margin-top:4px;">${leader.effect}</div>
+                </div>
+            ` : ''}
 
             <h3 style="text-align:center; color:#e0c080; margin-bottom:15px;">Ваша стартовая рука (нажмите на карту, чтобы заменить)</h3>
             <div id="mulligan-hand" style="display:flex; flex-wrap:wrap; justify-content:center; gap:8px; margin-bottom:30px;"></div>
@@ -216,8 +319,8 @@ function renderMulliganScreen() {
 function renderMulliganHand() {
     const container = document.getElementById('mulligan-hand');
     if (!container) return;
+    
     container.innerHTML = '';
-
     G.playerHand.forEach((card, idx) => {
         const el = createCardElement(card, false);
         el.style.cursor = G.mulliganCount < G.maxMulligan ? 'pointer' : 'default';
@@ -236,10 +339,11 @@ function mulliganSwap(idx) {
         showToast("Нет карт в колоде для замены!");
         return;
     }
-
+    
     const removed = G.playerHand.splice(idx, 1)[0];
     G.playerDeck.push(removed);
     shuffleArray(G.playerDeck);
+    
     const newCard = G.playerDeck.shift();
     G.playerHand.splice(idx, 0, newCard);
     G.mulliganCount++;
@@ -254,8 +358,7 @@ function startRound() {
     G.playerPassed = false;
     G.botPassed = false;
     G.playerHasPlayedThisTurn = false;
-
-    // Clear board each round
+    
     G.playerLeft = [];
     G.playerRight = [];
     G.botLeft = [];
@@ -265,13 +368,14 @@ function startRound() {
 
     renderGameBoard();
     showToast(`Раунд ${G.round} начался!`);
+    startTurnTimer();
 }
 
 // ==================== GAME BOARD RENDER ====================
 function renderGameBoard() {
     const container = document.getElementById('game-board');
     if (!container) return;
-
+    
     const pScore = calcScore('player');
     const bScore = calcScore('bot');
     const leader = G.playerLeader;
@@ -279,11 +383,20 @@ function renderGameBoard() {
     const playerPassedBadge = G.playerPassed ? '<span style="color:#ff8a80; margin-left:8px;">ПАСС</span>' : '';
     const botPassedBadge = G.botPassed ? '<span style="color:#ff8a80; margin-left:8px;">ПАСС</span>' : '';
 
+    // Update mobile header
+    if (isMobileDevice) {
+        document.getElementById('mobile-round').textContent = G.round;
+        document.getElementById('mobile-player-swords').textContent = G.playerSwords;
+        document.getElementById('mobile-bot-swords').textContent = G.botSwords;
+        document.getElementById('mobile-player-points').textContent = pScore;
+        document.getElementById('mobile-bot-points').textContent = bScore;
+        document.querySelector('.game-header-mobile').style.display = 'block';
+    }
+
     container.innerHTML = `
         <div style="max-width:1100px; margin:0 auto;">
-
-            <!-- HEADER -->
-            <div style="text-align:center; padding:10px 0 6px; position:relative;">
+            <!-- HEADER (Desktop) -->
+            <div class="desktop-header" style="text-align:center; padding:10px 0 6px; position:relative;">
                 <h2 style="margin:0; color:#d4af37; font-size:1.3em;">Раунд ${G.round} / 3</h2>
                 <div style="display:flex; justify-content:center; gap:30px; margin-top:6px; font-size:1em;">
                     <span>🗡️ Мечи игрока: <strong style="color:#4caf50;">${G.playerSwords}</strong></span>
@@ -337,14 +450,14 @@ function renderGameBoard() {
                 </div>
             </div>
 
-            <!-- HAND -->
-            <div class="hand" style="margin-top:14px; background:rgba(40,30,20,0.6); border:2px solid rgba(180,130,60,0.4);">
+            <!-- HAND (Desktop) -->
+            <div class="hand desktop-hand" style="margin-top:14px; background:rgba(40,30,20,0.6); border:2px solid rgba(180,130,60,0.4);">
                 <h4 style="color:#d4af37; margin-bottom:8px; font-size:0.95em;">Ваша рука (${G.playerHand.length})</h4>
                 <div id="player-hand" style="display:flex; flex-wrap:wrap; gap:6px; min-height:160px;"></div>
             </div>
 
-            <!-- ACTION BUTTONS -->
-            <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-top:14px; padding-bottom:20px;">
+            <!-- ACTION BUTTONS (Desktop) -->
+            <div class="desktop-turn-controls" style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-top:14px; padding-bottom:20px;">
                 ${!G.playerPassed ? `
                     <button onclick="playerEndTurn()" style="background:transparent; border:2px solid rgba(100,200,100,0.6); color:#fff; padding:12px 28px;">
                         ✅ Завершить ход
@@ -384,8 +497,8 @@ function calcScore(side) {
 function renderPlayerHand() {
     const container = document.getElementById('player-hand');
     if (!container) return;
+    
     container.innerHTML = '';
-
     G.playerHand.forEach((card, idx) => {
         const el = createCardElement(card, false);
         el.style.borderColor = G.playerPassed ? '#555' : '#42a5f5';
@@ -402,8 +515,8 @@ function renderPlayerHand() {
 function renderLaneCards(containerId, cards, isBot = false) {
     const cont = document.getElementById(containerId);
     if (!cont) return;
+    
     cont.innerHTML = '';
-
     cards.forEach(card => {
         const el = createCardElement(card, false);
         if (isBot) {
@@ -428,9 +541,10 @@ function showLaneSelection(handIdx) {
         showToast("За ход можно выложить только 1 карту!");
         return;
     }
-
+    
     const card = G.playerHand[handIdx];
     let allowed = [];
+    
     if (card.line === 'left') allowed = ['left'];
     else if (card.line === 'right') allowed = ['right'];
     else allowed = ['left', 'right'];
@@ -445,17 +559,17 @@ function showLaneSelection(handIdx) {
     overlay.innerHTML = `
         <div style="background:#2c2118; padding:28px; border-radius:16px; border:3px solid #8b5a2b; text-align:center; max-width:380px; width:90%;">
             <h3 style="color:#d4af37; margin-bottom:20px;">Куда поставить «${card.name}»?</h3>
-            <div style="display:flex; gap:16px; justify-content:center;">
-                <button onclick="playCardToLane(${handIdx},'left'); document.getElementById('lane-overlay').remove();"
+            <div style="display:flex; gap:16px; justify-content:center; flex-wrap:wrap;">
+                <button onclick="playCardToLane(${handIdx},'left'); document.getElementById('lane-overlay')?.remove();"
                     style="padding:16px 32px; font-size:1.05em; background:transparent; border:2px solid rgba(100,180,255,0.7); color:#fff;">
                     🛡️ Ближний ряд
                 </button>
-                <button onclick="playCardToLane(${handIdx},'right'); document.getElementById('lane-overlay').remove();"
+                <button onclick="playCardToLane(${handIdx},'right'); document.getElementById('lane-overlay')?.remove();"
                     style="padding:16px 32px; font-size:1.05em; background:transparent; border:2px solid rgba(255,100,100,0.7); color:#fff;">
                     🏹 Дальний ряд
                 </button>
             </div>
-            <button onclick="document.getElementById('lane-overlay').remove()"
+            <button onclick="document.getElementById('lane-overlay')?.remove()"
                 style="margin-top:20px; background:transparent; border:2px solid rgba(255,255,255,0.3); color:#aaa; padding:8px 24px; font-size:0.9em; min-width:auto;">
                 Отмена
             </button>
@@ -467,7 +581,7 @@ function showLaneSelection(handIdx) {
 
 function playCardToLane(handIdx, lane) {
     document.getElementById('lane-overlay')?.remove();
-
+    
     if (G.playerHasPlayedThisTurn) {
         showToast("За ход можно выложить только 1 карту!");
         return;
@@ -488,7 +602,7 @@ function playCardToLane(handIdx, lane) {
 function showLeaderAbilityModal() {
     const leader = G.playerLeader;
     if (!leader) return;
-
+    
     const modal = document.createElement('div');
     modal.className = 'modal';
     modal.id = 'leader-modal';
@@ -504,7 +618,7 @@ function showLeaderAbilityModal() {
                 <button onclick="useLeaderAbility()" style="background:transparent; border:2px solid rgba(255,215,0,0.6); color:#ffd740; padding:12px 28px;">
                     ✨ Применить
                 </button>
-                <button onclick="document.getElementById('leader-modal').remove()"
+                <button onclick="document.getElementById('leader-modal')?.remove()"
                     style="background:transparent; border:2px solid rgba(255,255,255,0.3); color:#aaa; padding:12px 24px; min-width:auto;">
                     Отмена
                 </button>
@@ -516,13 +630,16 @@ function showLeaderAbilityModal() {
 
 function useLeaderAbility() {
     document.getElementById('leader-modal')?.remove();
-    if (G.leaderUsed) { showToast("Умение лидера уже использовано!"); return; }
+    
+    if (G.leaderUsed) { 
+        showToast("Умение лидера уже использовано!"); 
+        return; 
+    }
+    
     G.leaderUsed = true;
-
     const leader = G.playerLeader;
     const effectText = (leader?.effect || '').toLowerCase();
 
-    // Simplified effect mapping
     if (effectText.includes('+1 к силе') || effectText.includes('всем вашим картам')) {
         [...G.playerLeft, ...G.playerRight].forEach(c => c.power = (c.power || 0) + 1);
         showToast(`${leader.name}: +1 к силе всем картам!`);
@@ -551,48 +668,72 @@ function playerEndTurn() {
         showToast("Вы не сыграли карту! Сыграйте или нажмите Пасс.");
         return;
     }
+    
     G.playerHasPlayedThisTurn = false;
+    clearInterval(turnTimer);
     afterPlayerTurn();
 }
 
 function playerPass() {
     G.playerPassed = true;
+    clearInterval(turnTimer);
     showToast("Вы пасанули. Ждёте конца раунда.");
     afterPlayerTurn();
 }
 
 function afterPlayerTurn() {
+    // Check if both passed
     if (G.playerPassed && G.botPassed) {
         endRound();
         return;
     }
-
-    // Bot turn
-    botTakeTurn();
-
-    if (G.playerPassed && G.botPassed) {
-        endRound();
-        return;
-    }
-
-    renderGameBoard();
+    
+    // Bot takes turn
+    setTimeout(() => {
+        botTakeTurn();
+        
+        // Check again after bot action
+        if (G.playerPassed && G.botPassed) {
+            setTimeout(() => endRound(), 1000);
+            return;
+        }
+        
+        // If player passed but bot didn't, bot plays then passes
+        if (G.playerPassed && !G.botPassed) {
+            setTimeout(() => {
+                if (!G.botPassed && G.botHand.length > 0) {
+                    // Bot plays one more card
+                    const idx = Math.floor(Math.random() * G.botHand.length);
+                    const card = G.botHand[idx];
+                    const lane = card.line === 'left' ? 'botLeft' : card.line === 'right' ? 'botRight' : (Math.random() > 0.5 ? 'botLeft' : 'botRight');
+                    G[lane].push(card);
+                    G.botHand.splice(idx, 1);
+                    showToast(`Бот сыграл «${card.name}» и пасанул`);
+                }
+                G.botPassed = true;
+                setTimeout(() => endRound(), 1500);
+            }, 1000);
+        }
+        
+        renderGameBoard();
+    }, 500);
 }
 
 // ==================== BOT AI ====================
 function botTakeTurn() {
     if (G.botPassed) return;
-
+    
     const pScore = calcScore('player');
     const bScore = calcScore('bot');
 
-    // Bot decides to pass if it's winning and player passed
+    // Bot passes if player passed and bot is winning
     if (G.playerPassed && bScore > pScore) {
         G.botPassed = true;
         showToast("Бот пасанул.");
         return;
     }
 
-    // Bot pass if hand empty
+    // Bot passes if no cards
     if (G.botHand.length === 0) {
         G.botPassed = true;
         showToast("Бот пасанул (нет карт).");
@@ -610,19 +751,16 @@ function botTakeTurn() {
     G.botHand.splice(idx, 1);
     applyCardEffect(card, 'bot', lane === 'botLeft' ? 'left' : 'right');
     showToast(`Бот сыграл «${card.name}»`);
-
-    // Bot may also pass if trailing badly
-    if (!G.playerPassed && G.botHand.length === 0) {
-        G.botPassed = true;
-    }
 }
 
 // ==================== ROUND END ====================
 function endRound() {
+    clearInterval(turnTimer);
+    
     const pScore = calcScore('player');
     const bScore = calcScore('bot');
-
     let roundMsg = '';
+    
     if (pScore > bScore) {
         G.playerSwords++;
         roundMsg = `⚔️ Вы выиграли раунд ${G.round}! (${pScore} vs ${bScore}) +1 Меч`;
@@ -633,7 +771,6 @@ function endRound() {
         roundMsg = `🤝 Ничья в раунде ${G.round}! (${pScore} : ${bScore})`;
     }
 
-    // Check for 2 swords win
     if (G.playerSwords >= 2 || G.botSwords >= 2 || G.round >= 3) {
         showRoundEndScreen(roundMsg, true);
         return;
@@ -645,7 +782,7 @@ function endRound() {
 function showRoundEndScreen(message, isGameOver) {
     const container = document.getElementById('game-board');
     const nextRound = G.round + 1;
-
+    
     container.innerHTML = `
         <div style="max-width:600px; margin:0 auto; text-align:center; padding:40px 20px;">
             <h1 style="font-size:1.8em; color:#d4af37; margin-bottom:20px;">${message}</h1>
@@ -654,16 +791,16 @@ function showRoundEndScreen(message, isGameOver) {
                 <div>🗡️ Мечи бота: <strong style="color:#ef5350;">${G.botSwords}</strong></div>
             </div>
             ${isGameOver ?
-                `<h2 style="font-size:2em; margin:20px 0; color:${G.playerSwords>=2?'#4caf50':'#ef5350'}">
+                `<h2 style="font-size:2em; margin:20px 0; color:${G.playerSwords >= 2 ? '#4caf50' : '#ef5350'}">
                     ${G.playerSwords >= 2 ? '🏆 ПОБЕДА!' : G.botSwords >= 2 ? '💀 ПОРАЖЕНИЕ' : G.playerSwords > G.botSwords ? '🏆 ПОБЕДА!' : '💀 ПОРАЖЕНИЕ'}
-                 </h2>
-                 <button onclick="startMulliganPhase()" style="margin:10px; background:transparent; border:2px solid rgba(255,255,255,0.5); color:#fff;">🔄 Новая игра</button>
-                 <button onclick="showMainMenu()" style="margin:10px; background:transparent; border:2px solid rgba(255,255,255,0.3); color:#aaa; min-width:auto;">🏠 Меню</button>`
+                </h2>
+                <button onclick="startMulliganPhase()" style="margin:10px; background:transparent; border:2px solid rgba(255,255,255,0.5); color:#fff;">🔄 Новая игра</button>
+                <button onclick="showMainMenu()" style="margin:10px; background:transparent; border:2px solid rgba(255,255,255,0.3); color:#aaa; min-width:auto;">🏠 Меню</button>`
                 :
                 `<p style="color:#b39ddb; margin-bottom:20px;">После раунда обе стороны тянут по 1 карте.</p>
-                 <button onclick="nextRoundBegin()" style="background:transparent; border:2px solid rgba(255,215,0,0.6); color:#ffd740; padding:14px 40px; font-size:1.1em;">
-                     ⚔️ Раунд ${nextRound}
-                 </button>`
+                <button onclick="nextRoundBegin()" style="background:transparent; border:2px solid rgba(255,215,0,0.6); color:#ffd740; padding:14px 40px; font-size:1.1em;">
+                    ⚔️ Раунд ${nextRound}
+                </button>`
             }
         </div>
     `;
@@ -671,8 +808,7 @@ function showRoundEndScreen(message, isGameOver) {
 
 function nextRoundBegin() {
     G.round++;
-
-    // Each side draws 1 card
+    
     if (G.playerDeck.length > 0) {
         G.playerHand.push(G.playerDeck.shift());
     }
@@ -687,9 +823,12 @@ function nextRoundBegin() {
     G.playerPassed = false;
     G.botPassed = false;
     G.playerHasPlayedThisTurn = false;
+    G.leaderUsed = false;
+    G.botLeaderUsed = false;
 
     renderGameBoard();
     showToast(`Раунд ${G.round} начался!`);
+    startTurnTimer();
 }
 
 function surrenderGame() {
@@ -702,7 +841,7 @@ function surrenderGame() {
 function applyCardEffect(card, side, lane) {
     const effectText = (card.effect || '').toLowerCase();
     const isPlayer = side === 'player';
-
+    
     const ownLeft = isPlayer ? G.playerLeft : G.botLeft;
     const ownRight = isPlayer ? G.playerRight : G.botRight;
     const oppLeft = isPlayer ? G.botLeft : G.playerLeft;
@@ -768,7 +907,9 @@ document.addEventListener('DOMContentLoaded', () => {
         Telegram.WebApp.ready();
         Telegram.WebApp.expand();
     }
-
+    
+    detectDevice();
+    
     const btnOnline = document.getElementById('btn-online');
     const btnMyDecks = document.getElementById('btn-my-decks');
     const btnBot = document.getElementById('btn-bot');
@@ -814,6 +955,7 @@ document.addEventListener('DOMContentLoaded', () => {
 function renderMainFactionLogos() {
     const container = document.getElementById('main-faction-logos');
     if (!container) return;
+    
     container.innerHTML = '';
     Object.keys(FACTIONS).forEach(key => {
         const f = FACTIONS[key];
@@ -822,8 +964,16 @@ function renderMainFactionLogos() {
         btn.style.width = '160px';
         btn.style.height = '160px';
         btn.style.backgroundImage = `url('${f.emblem}')`;
-        btn.innerHTML = `<span style="font-size:0.9em; padding:6px;">${f.name}</span>`;
+        btn.innerHTML = `<span style="font-size:0.9em; padding:6px; display:flex; align-items:center; justify-content:center; text-align:center;">${f.name}</span>`;
         btn.onclick = () => showFactionLoreModal(key);
         container.appendChild(btn);
     });
 }
+
+// Handle window resize
+window.addEventListener('resize', () => {
+    detectDevice();
+    if (G && G.phase === 'play') {
+        renderGameBoard();
+    }
+});
