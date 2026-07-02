@@ -1,3 +1,4 @@
+// Lily Wars v0.9.4 — Improved Clean Build
 let currentDeckForGame = null;
 let savedDecks = JSON.parse(localStorage.getItem('lilyDecks')) || [];
 let G = {};
@@ -9,7 +10,7 @@ const FACTION_LORE = {
     knights: "Рыцари Цветка Лилии — благородный орден защитников королевства.",
     blacklily: "Прислужники Черной Лилии — тёмный культ, поклоняющийся древней силе.",
     dryads: "Дриады Леса Нидолион — древние хранители природы и магии леса.",
-    wizards: "Орден Чародеев — могущественные маги, изучающие все школы магии."
+    wizards: "Орден Чародеев — могущественные маги, изучая все школы магии."
 };
 
 function detectDevice() {
@@ -22,7 +23,7 @@ function initGameState(playerDeckData) {
     while (botCards.length < 25) {
         botCards.push({...botCards[Math.floor(Math.random() * botCards.length)]});
     }
-    
+
     G = {
         round: 1, playerSwords: 0, botSwords: 0,
         playerPassed: false, botPassed: false,
@@ -62,7 +63,7 @@ function startTimer() {
             clearInterval(turnTimer);
             if (!G.playerPassed) {
                 playerPass();
-                showToast("️ Время вышло! Автоматический пас.");
+                showToast("Время вышло! Автоматический пас.");
             }
         }
     }, 1000);
@@ -174,17 +175,22 @@ function calcScore(side) {
 function renderGameBoard() {
     const container = document.getElementById('game-board');
     if (!container) return;
-    
+
     const pScore = calcScore('player');
     const bScore = calcScore('bot');
 
-    // Обновляем мобильную шапку
     if (isMobile) {
-        document.getElementById('m-round').textContent = G.round;
-        document.getElementById('m-p-swords').textContent = G.playerSwords;
-        document.getElementById('m-b-swords').textContent = G.botSwords;
-        document.getElementById('m-p-score').textContent = pScore;
-        document.getElementById('m-b-score').textContent = bScore;
+        const mRound = document.getElementById('m-round');
+        const mPSwords = document.getElementById('m-p-swords');
+        const mBSwords = document.getElementById('m-b-swords');
+        const mPScore = document.getElementById('m-p-score');
+        const mBScore = document.getElementById('m-b-score');
+
+        if (mRound) mRound.textContent = G.round;
+        if (mPSwords) mPSwords.textContent = G.playerSwords;
+        if (mBSwords) mBSwords.textContent = G.botSwords;
+        if (mPScore) mPScore.textContent = pScore;
+        if (mBScore) mBScore.textContent = bScore;
     }
 
     let html = `
@@ -197,7 +203,7 @@ function renderGameBoard() {
                 </div>
             </div>
 
-            <!-- ПОЛЕ БОТА -->
+            <!-- БОТ -->
             <div style="margin-bottom:10px;">
                 <div style="color:#ef9a9a; font-weight:bold; margin-bottom:5px; text-align:center;">БОТ (${G.botFaction}) ${G.botPassed ? '<span style="color:#ff8a80;">[ПАСС]</span>' : ''}</div>
                 <div class="lanes">
@@ -208,7 +214,7 @@ function renderGameBoard() {
 
             <div style="height:1px; background:rgba(255,255,255,0.2); margin:10px 0;"></div>
 
-            <!-- ПОЛЕ ИГРОКА -->
+            <!-- ИГРОК -->
             <div>
                 <div style="color:#64b5f6; font-weight:bold; margin-bottom:5px; text-align:center;">ВЫ ${G.playerPassed ? '<span style="color:#ff8a80;">[ПАСС]</span>' : ''}</div>
                 <div class="lanes">
@@ -240,7 +246,7 @@ function renderGameBoard() {
     renderLaneCards('player-right', G.playerRight, false);
     renderLaneCards('bot-left', G.botLeft, true);
     renderLaneCards('bot-right', G.botRight, true);
-    
+
     if (!isMobile) renderPlayerHandDesktop();
     else renderMobileHand();
 }
@@ -385,19 +391,16 @@ function playerPass() {
 }
 
 function afterPlayerTurn() {
-    // ИСПРАВЛЕНИЕ ЗАВИСАНИЯ: Если игрок пасанул, бот сразу решает и раунд заканчивается
     if (G.playerPassed) {
         clearInterval(turnTimer);
         setTimeout(() => {
             const pScore = calcScore('player');
             const bScore = calcScore('bot');
-            
+
             if (bScore > pScore && G.botHand.length > 0) {
-                // Бот выигрывает, просто пасует
                 G.botPassed = true;
                 showToast("Бот пасует.");
             } else if (G.botHand.length > 0) {
-                // Бот играет одну карту и пасует
                 botPlayCard();
                 G.botPassed = true;
                 showToast("Бот сыграл карту и пасует.");
@@ -409,7 +412,6 @@ function afterPlayerTurn() {
         return;
     }
 
-    // Обычный ход
     botTakeTurn();
     renderGameBoard();
 }
@@ -533,28 +535,38 @@ function applyCardEffect(card, side, lane) {
 // ==================== INIT ====================
 document.addEventListener('DOMContentLoaded', () => {
     if (window.Telegram?.WebApp) { Telegram.WebApp.ready(); Telegram.WebApp.expand(); }
-    
+
     detectDevice();
 
-    document.getElementById('btn-online').onclick = () => showToast("Онлайн в разработке!");
-    document.getElementById('btn-my-decks').onclick = showMyDecks;
-    document.getElementById('btn-bot').onclick = showMyDecks;
-    document.getElementById('btn-new-deck').onclick = () => { currentDeck = []; selectedLeader = null; showDeckBuilder(); };
-    document.getElementById('btn-back-from-decks').onclick = showMainMenu;
-    document.getElementById('btn-back-to-menu').onclick = showMainMenu;
-    document.getElementById('btn-save-deck').onclick = () => { if (typeof window.saveCurrentDeck === 'function') window.saveCurrentDeck(); };
+    const btnOnline = document.getElementById('btn-online');
+    const btnMyDecks = document.getElementById('btn-my-decks');
+    const btnBot = document.getElementById('btn-bot');
+    const btnNewDeck = document.getElementById('btn-new-deck');
+    const btnBackDecks = document.getElementById('btn-back-from-decks');
+    const btnBackBuilder = document.getElementById('btn-back-to-menu');
+    const btnSaveDeck = document.getElementById('btn-save-deck');
+
+    if (btnOnline) btnOnline.onclick = () => showToast("Онлайн в разработке!");
+    if (btnMyDecks) btnMyDecks.onclick = showMyDecks;
+    if (btnBot) btnBot.onclick = showMyDecks;
+    if (btnNewDeck) btnNewDeck.onclick = () => { currentDeck = []; selectedLeader = null; showDeckBuilder(); };
+    if (btnBackDecks) btnBackDecks.onclick = showMainMenu;
+    if (btnBackBuilder) btnBackBuilder.onclick = showMainMenu;
+    if (btnSaveDeck) btnSaveDeck.onclick = () => { if (typeof window.saveCurrentDeck === 'function') window.saveCurrentDeck(); };
 
     // Мобильные кнопки
-    document.getElementById('m-btn-leader').onclick = () => { if (!G.leaderUsed && G.playerLeader) showLeaderAbilityModal(); else showToast("Нельзя использовать!"); };
-    document.getElementById('m-btn-pass').onclick = playerPass;
-    document.getElementById('m-btn-end').onclick = playerEndTurn;
-    document.getElementById('m-btn-surrender').onclick = surrenderGame;
-    
+    const mBtnLeader = document.getElementById('m-btn-leader');
+    const mBtnPass = document.getElementById('m-btn-pass');
+    const mBtnEnd = document.getElementById('m-btn-end');
+    const mBtnSurrender = document.getElementById('m-btn-surrender');
     const popupBtn = document.getElementById('hand-popup-btn');
     const popup = document.getElementById('hand-popup');
-    if (popupBtn && popup) {
-        popupBtn.onclick = () => popup.classList.toggle('active');
-    }
+
+    if (mBtnLeader) mBtnLeader.onclick = () => { if (!G.leaderUsed && G.playerLeader) showLeaderAbilityModal(); else showToast("Нельзя использовать!"); };
+    if (mBtnPass) mBtnPass.onclick = playerPass;
+    if (mBtnEnd) mBtnEnd.onclick = playerEndTurn;
+    if (mBtnSurrender) mBtnSurrender.onclick = surrenderGame;
+    if (popupBtn && popup) popupBtn.onclick = () => popup.classList.toggle('active');
 
     window.showToast = function(msg) {
         let toast = document.getElementById('toast');
