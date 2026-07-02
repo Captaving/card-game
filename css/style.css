@@ -1,0 +1,180 @@
+/* Lily Wars v0.9.3 — Final Clean Build */
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    font-family: 'Segoe UI', 'Roboto', sans-serif;
+    color: #e8d5b7;
+    min-height: 100vh;
+    background: #0a0604;
+}
+
+.screen { display: none; padding: 15px; min-height: 100vh; }
+.screen.active { display: block; }
+
+/* Backgrounds */
+#screen-main {
+    background: url('../images/battlefield-main.jpg') center/cover no-repeat;
+    position: relative;
+}
+
+#screen-deck-builder, #screen-my-decks {
+    background: url('../images/manuscript-deck.jpg') center/cover no-repeat;
+    position: relative;
+}
+
+#screen-game {
+    background: #0a0710;
+}
+
+/* Faction Buttons - Centered */
+.faction-btn {
+    width: 150px; height: 150px;
+    border-radius: 50% !important;
+    border: 4px solid rgba(200,150,255,0.75);
+    background-size: cover;
+    background-position: center;
+    margin: 10px;
+    box-shadow: 0 0 20px rgba(180,100,255,0.45);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+.faction-btn:hover { transform: scale(1.05); box-shadow: 0 0 35px rgba(180,100,255,0.8); }
+.faction-btn.active { border-color: #ffd740; box-shadow: 0 0 30px rgba(255,215,64,0.8); }
+
+.faction-btn span {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0,0,0,0.8);
+    padding: 8px 10px;
+    border-radius: 8px;
+    font-size: 0.82em;
+    font-weight: 600;
+    color: #fff;
+    text-align: center;
+    width: 85%;
+}
+
+/* Buttons */
+button {
+    background: transparent;
+    color: #fff;
+    border: 2px solid rgba(255,255,255,0.5);
+    padding: 14px 28px;
+    margin: 8px;
+    font-size: 1.05em;
+    border-radius: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    min-width: 180px;
+}
+button:hover { background: rgba(255,255,255,0.1); border-color: #fff; }
+
+/* Cards */
+.card {
+    width: 110px; min-height: 145px;
+    background: linear-gradient(180deg, #2c1f4a, #1a1030);
+    border: 2px solid #7b5aa6;
+    border-radius: 10px; padding: 6px;
+    margin: 4px; cursor: pointer;
+    position: relative; display: flex; flex-direction: column;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.5);
+    font-size: 0.8em;
+}
+.card:hover { transform: translateY(-4px); border-color: #c77dff; }
+
+/* Mobile Specific */
+.mobile-header {
+    display: none;
+    position: fixed; top: 0; left: 0; right: 0;
+    background: rgba(0,0,0,0.92);
+    padding: 10px;
+    z-index: 1000;
+    text-align: center;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.mobile-controls {
+    display: none;
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: rgba(0,0,0,0.95);
+    padding: 10px;
+    z-index: 1000;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    border-top: 1px solid rgba(255,255,255,0.1);
+}
+
+.mobile-btn {
+    padding: 14px;
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 8px;
+    background: rgba(60,60,60,0.4);
+    color: #fff;
+    font-size: 0.95em;
+    min-width: auto;
+    margin: 0;
+}
+
+.hand-popup-btn {
+    display: none;
+    position: fixed; bottom: 130px; right: 15px;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: #fff; border: 2px solid #fff; border-radius: 50%;
+    width: 55px; height: 55px; font-size: 22px;
+    z-index: 999; box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    align-items: center; justify-content: center;
+}
+
+.hand-popup {
+    display: none;
+    position: fixed; bottom: 195px; right: 10px; left: 10px;
+    background: rgba(15,8,25,0.98);
+    border: 2px solid #7b5aa6;
+    border-radius: 12px;
+    padding: 12px;
+    max-height: 230px;
+    overflow-y: auto;
+    z-index: 1001;
+}
+.hand-popup.active { display: block; }
+
+.turn-timer {
+    display: none;
+    position: fixed; top: 10px; right: 10px;
+    background: rgba(255,80,0,0.9);
+    color: #fff;
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-weight: bold;
+    z-index: 1002;
+    border: 1px solid #fff;
+}
+.turn-timer.urgent { background: rgba(255,0,0,0.95); animation: pulse 0.5s infinite; }
+@keyframes pulse { 50% { transform: scale(1.1); } }
+
+/* Desktop */
+@media (min-width: 769px) {
+    .mobile-header, .mobile-controls, .hand-popup-btn, .hand-popup, .turn-timer { display: none !important; }
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+    .desktop-only { display: none !important; }
+    .mobile-header, .mobile-controls, .hand-popup-btn, .turn-timer { display: block; }
+    
+    #screen-game { padding-top: 75px; padding-bottom: 150px; }
+    
+    .lanes { flex-direction: column; gap: 8px; }
+    .lane { min-height: 95px; padding: 6px; }
+    
+    .card { width: 72px; min-height: 98px; font-size: 0.65em; }
+    
+    .faction-btn { width: 105px; height: 105px; }
+    #main-faction-logos .faction-btn { width: 95px; height: 95px; }
+}

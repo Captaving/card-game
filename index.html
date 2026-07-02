@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lily Wars — Карточная игра</title>
+    <link rel="icon" type="image/png" href="images/Favicon.png">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+    <!-- MAIN MENU -->
+    <div id="screen-main" class="screen active">
+        <h1>Lily Wars</h1>
+        <p style="margin-bottom:24px; color:rgba(255,255,255,0.7); font-size:1.1em;">
+            Тактическая карточная игра с 4 фракциями
+        </p>
+
+        <div style="margin: 20px 0 32px;">
+            <h3 style="margin-bottom:14px; color:rgba(255,255,255,0.6); font-size:0.95em; font-weight:normal; letter-spacing:0.06em;">ФРАКЦИИ</h3>
+            <div id="main-faction-logos" class="faction-select"></div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; align-items:center; gap:4px;">
+            <button id="btn-online">Играть онлайн</button>
+            <button id="btn-my-decks">Мои колоды</button>
+            <button id="btn-bot">Играть с ботом</button>
+            <button id="btn-new-deck">Создать колоду</button>
+        </div>
+    </div>
+
+    <!-- DECK BUILDER -->
+    <div id="screen-deck-builder" class="screen">
+        <h2>Редактор колод</h2>
+        <div id="faction-select" class="faction-select"></div>
+
+        <div style="max-width:1100px; margin:16px auto;">
+            <h3 style="text-align:left; margin-left:8px; color:#f5d080;">ДОСТУПНЫЕ КАРТЫ</h3>
+            <div id="available-cards"></div>
+
+            <div style="margin:22px 0 8px;">
+                <h3 style="text-align:left; margin-left:8px; color:#a5d6a7;">ВАША КОЛОДА</h3>
+                <div class="deck-stats">
+                    <span>Карт: <strong id="deck-count">0/25</strong></span>
+                    <span>Влияние: <strong id="influence-count">0/170</strong></span>
+                </div>
+                <div id="deck-cards"></div>
+            </div>
+        </div>
+
+        <div style="text-align:center; margin-top:16px; padding-bottom:30px;">
+            <button id="btn-save-deck">Сохранить колоду</button>
+            <button id="btn-back-to-menu">← Назад в меню</button>
+        </div>
+    </div>
+
+    <!-- MY DECKS -->
+    <div id="screen-my-decks" class="screen">
+        <h2 style="text-align:center; padding-top:20px;">Мои колоды</h2>
+        <div id="decks-list" style="max-width:520px; margin:0 auto;"></div>
+        <div style="text-align:center; margin-top:20px; padding-bottom:30px;">
+            <button id="btn-back-from-decks">← Назад в меню</button>
+        </div>
+    </div>
+
+    <!-- GAME SCREEN -->
+    <div id="screen-game" class="screen">
+        <!-- Mobile Header -->
+        <div class="mobile-header game-header-mobile">
+            <div class="round-info">Раунд <span id="m-round">1</span>/3</div>
+            <div class="score-info">
+                <span>Вы: <strong id="m-p-swords">0</strong> (<span id="m-p-score">0</span>)</span>
+                <span>Бот: <strong id="m-b-swords">0</strong> (<span id="m-b-score">0</span>)</span>
+            </div>
+        </div>
+
+        <!-- Timer -->
+        <div id="turn-timer" class="turn-timer desktop-only">
+            <span id="timer-val">30</span>s
+        </div>
+
+        <div id="game-board" class="game-board-mobile"></div>
+
+        <!-- Mobile Controls -->
+        <div class="mobile-controls">
+            <button id="m-btn-pass" class="mobile-btn">🏳️ Пасс</button>
+            <button id="m-btn-leader" class="mobile-btn">👑 Умение</button>
+            <button id="m-btn-end" class="mobile-btn">✅ Завершить ход</button>
+            <button id="m-btn-surrender" class="mobile-btn">🏳 Сдаться</button>
+        </div>
+
+        <!-- Hand Popup Button -->
+        <button id="hand-popup-btn" class="hand-popup-btn">🃏</button>
+
+        <!-- Hand Popup -->
+        <div id="hand-popup" class="hand-popup">
+            <h4 style="color:#d4af37; margin-bottom:8px; text-align:center;">Ваша рука</h4>
+            <div id="mobile-hand-cards" class="cards"></div>
+        </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script src="js/config.js"></script>
+    <script src="js/deckbuilder.js"></script>
+    <script src="js/game.js"></script>
+</body>
+</html>
