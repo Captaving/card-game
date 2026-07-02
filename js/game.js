@@ -4,7 +4,6 @@ let G = {};
 let isMobile = false;
 let turnTimer = null;
 let timeLeft = 30;
-
 const FACTION_LORE = {
     knights: "Рыцари Цветка Лилии — благородный орден защитников королевства.",
     blacklily: "Прислужники Черной Лилии — тёмный культ, поклоняющийся древней силе.",
@@ -22,7 +21,7 @@ function initGameState(playerDeckData) {
     while (botCards.length < 25) {
         botCards.push({...botCards[Math.floor(Math.random() * botCards.length)]});
     }
-    
+   
     G = {
         round: 1, playerSwords: 0, botSwords: 0,
         playerPassed: false, botPassed: false,
@@ -34,8 +33,9 @@ function initGameState(playerDeckData) {
         playerLeader: playerDeckData.leader || getFactionLeader(playerDeckData.faction),
         botLeader: getFactionLeader(botFaction),
         playerFaction: playerDeckData.faction, botFaction: botFaction,
+        mulliganUsed: 0,
+        maxMulligan: 3
     };
-
     shuffleArray(G.playerDeckFull);
     G.playerDeck = [...G.playerDeckFull];
     shuffleArray(G.botDeck);
@@ -50,6 +50,62 @@ function shuffleArray(arr) {
     }
 }
 
+// ==================== МУЛЛИГАН ====================
+
+function startMulligan() {
+    G.mulliganUsed = 0;
+    G.phase = 'mulligan';
+
+    const container = document.getElementById('game-board');
+    container.innerHTML = `
+        <div style="max-width:900px; margin:40px auto; text-align:center;">
+            <h2 style="color:#d4af37;">Муллиган — замена карт</h2>
+            <p style="color:#aaa;">Можно заменить до <strong>3 карт</strong>. Заменённые карты уходят в низ колоды.</p>
+            <div id="mulligan-hand" style="display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin:25px 0;"></div>
+            <button onclick="finishMulligan()" style="background:#2e7d32; color:white; padding:14px 50px; font-size:1.1em; border:none; border-radius:8px; cursor:pointer;">
+                Готово (начать игру)
+            </button>
+        </div>
+    `;
+    renderMulliganHand();
+}
+
+function renderMulliganHand() {
+    const container = document.getElementById('mulligan-hand');
+    if (!container) return;
+    container.innerHTML = '';
+
+    G.playerHand.forEach((card, index) => {
+        const el = createCardElement(card, false);
+        el.onclick = () => mulliganReplaceCard(index);
+        container.appendChild(el);
+    });
+}
+
+function mulliganReplaceCard(index) {
+    if (G.mulliganUsed >= G.maxMulligan) {
+        showToast("Можно заменить максимум 3 карты");
+        return;
+    }
+    const card = G.playerHand.splice(index, 1)[0];
+    G.playerDeck.push(card);
+    shuffleArray(G.playerDeck);
+
+    if (G.playerDeck.length > 0) {
+        G.playerHand.push(G.playerDeck.shift());
+    }
+    G.mulliganUsed++;
+    renderMulliganHand();
+    showToast(`Заменено: ${G.mulliganUsed}/3`);
+}
+
+function finishMulligan() {
+    G.phase = 'play';
+    renderGameBoard();
+    showToast("Игра начинается!");
+    startTimer();
+}
+
 // ==================== ТАЙМЕР ====================
 function startTimer() {
     clearInterval(turnTimer);
@@ -62,7 +118,7 @@ function startTimer() {
             clearInterval(turnTimer);
             if (!G.playerPassed) {
                 playerPass();
-                showToast("️ Время вышло! Автоматический пас.");
+                showToast("Время вышло! Автоматический пас.");
             }
         }
     }, 1000);
@@ -161,9 +217,9 @@ function startMulliganPhase() {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     document.getElementById('screen-game').classList.add('active');
     detectDevice();
-    renderGameBoard();
-    showToast("Игра началась! Раунд 1");
-    startTimer();
+
+    // Запускаем муллиган
+    startMulligan();
 }
 
 function calcScore(side) {
@@ -174,11 +230,10 @@ function calcScore(side) {
 function renderGameBoard() {
     const container = document.getElementById('game-board');
     if (!container) return;
-    
+   
     const pScore = calcScore('player');
     const bScore = calcScore('bot');
-
-    // Обновляем мобильную шапку
+   
     if (isMobile) {
         document.getElementById('m-round').textContent = G.round;
         document.getElementById('m-p-swords').textContent = G.playerSwords;
@@ -233,14 +288,13 @@ function renderGameBoard() {
             </div>
         </div>
     `;
-
     container.innerHTML = html;
 
     renderLaneCards('player-left', G.playerLeft, false);
     renderLaneCards('player-right', G.playerRight, false);
     renderLaneCards('bot-left', G.botLeft, true);
     renderLaneCards('bot-right', G.botRight, true);
-    
+   
     if (!isMobile) renderPlayerHandDesktop();
     else renderMobileHand();
 }
@@ -296,7 +350,6 @@ function showLaneSelection(handIdx) {
     if (card.line === 'left') allowed = ['left'];
     else if (card.line === 'right') allowed = ['right'];
     else allowed = ['left', 'right'];
-
     if (allowed.length === 1) { playCardToLane(handIdx, allowed[0]); return; }
 
     const overlay = document.createElement('div');
@@ -369,7 +422,7 @@ function useLeaderAbility() {
     renderGameBoard();
 }
 
-// ==================== ХОДЫ И БОТ ====================
+// ==================== ХОДЫ ====================
 function playerEndTurn() {
     if (!G.playerHasPlayedThisTurn && G.playerHand.length > 0) {
         showToast("Сыграйте карту или нажмите Пасс!"); return;
@@ -385,19 +438,15 @@ function playerPass() {
 }
 
 function afterPlayerTurn() {
-    // ИСПРАВЛЕНИЕ ЗАВИСАНИЯ: Если игрок пасанул, бот сразу решает и раунд заканчивается
     if (G.playerPassed) {
         clearInterval(turnTimer);
         setTimeout(() => {
             const pScore = calcScore('player');
             const bScore = calcScore('bot');
-            
             if (bScore > pScore && G.botHand.length > 0) {
-                // Бот выигрывает, просто пасует
                 G.botPassed = true;
                 showToast("Бот пасует.");
             } else if (G.botHand.length > 0) {
-                // Бот играет одну карту и пасует
                 botPlayCard();
                 G.botPassed = true;
                 showToast("Бот сыграл карту и пасует.");
@@ -408,8 +457,6 @@ function afterPlayerTurn() {
         }, 800);
         return;
     }
-
-    // Обычный ход
     botTakeTurn();
     renderGameBoard();
 }
@@ -435,7 +482,7 @@ function endRound() {
     const bScore = calcScore('bot');
     let msg = '';
     if (pScore > bScore) { G.playerSwords++; msg = `⚔️ Вы выиграли раунд ${G.round}! (${pScore} vs ${bScore})`; }
-    else if (bScore > pScore) { G.botSwords++; msg = `💀 Бот выиграл раунд ${G.round}!`; }
+    else if (bScore > pScore) { G.botSwords++; msg = `💀 Бот выиграли раунд ${G.round}!`; }
     else { msg = `🤝 Ничья в раунде ${G.round}!`; }
 
     if (G.playerSwords >= 2 || G.botSwords >= 2 || G.round >= 3) {
@@ -533,9 +580,8 @@ function applyCardEffect(card, side, lane) {
 // ==================== INIT ====================
 document.addEventListener('DOMContentLoaded', () => {
     if (window.Telegram?.WebApp) { Telegram.WebApp.ready(); Telegram.WebApp.expand(); }
-    
+   
     detectDevice();
-
     document.getElementById('btn-online').onclick = () => showToast("Онлайн в разработке!");
     document.getElementById('btn-my-decks').onclick = showMyDecks;
     document.getElementById('btn-bot').onclick = showMyDecks;
@@ -544,12 +590,11 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-back-to-menu').onclick = showMainMenu;
     document.getElementById('btn-save-deck').onclick = () => { if (typeof window.saveCurrentDeck === 'function') window.saveCurrentDeck(); };
 
-    // Мобильные кнопки
     document.getElementById('m-btn-leader').onclick = () => { if (!G.leaderUsed && G.playerLeader) showLeaderAbilityModal(); else showToast("Нельзя использовать!"); };
     document.getElementById('m-btn-pass').onclick = playerPass;
     document.getElementById('m-btn-end').onclick = playerEndTurn;
     document.getElementById('m-btn-surrender').onclick = surrenderGame;
-    
+
     const popupBtn = document.getElementById('hand-popup-btn');
     const popup = document.getElementById('hand-popup');
     if (popupBtn && popup) {
