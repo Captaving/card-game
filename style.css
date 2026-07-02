@@ -1,0 +1,193 @@
+/* Lily Wars v0.9.3 — Clean Production Build */
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    font-family: 'Segoe UI', 'Roboto', sans-serif;
+    color: #e8d5b7;
+    background: #0a0604;
+    min-height: 100vh;
+}
+
+/* === MAIN MENU (как на скриншоте пользователя) === */
+#screen-main {
+    background: url('../images/battlefield-main.jpg') center/cover no-repeat;
+    position: relative;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 40px;
+}
+
+#screen-main::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.55), rgba(0,0,0,0.7));
+}
+
+#screen-main > * {
+    position: relative;
+    z-index: 1;
+}
+
+#screen-main h1 {
+    font-size: 3.2em;
+    color: #fff;
+    text-shadow: 0 0 30px rgba(180,100,255,0.6);
+    margin-bottom: 8px;
+}
+
+/* Faction circles with glow */
+.faction-btn {
+    width: 160px;
+    height: 160px;
+    border-radius: 50%;
+    border: 5px solid #c77dff;
+    background-size: cover;
+    background-position: center;
+    margin: 12px;
+    box-shadow: 0 0 25px #c77dff, 0 0 50px rgba(180,100,255,0.4);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.faction-btn:hover {
+    transform: scale(1.08);
+    box-shadow: 0 0 40px #c77dff, 0 0 80px rgba(180,100,255,0.6);
+}
+
+.faction-btn span {
+    position: absolute;
+    bottom: 12px;
+    left: 0;
+    right: 0;
+    background: rgba(0,0,0,0.75);
+    color: #fff;
+    font-weight: 700;
+    font-size: 0.95em;
+    padding: 6px 0;
+    text-align: center;
+}
+
+/* Buttons */
+button {
+    background: transparent;
+    color: #e8d5b7;
+    border: 2px solid rgba(200,150,255,0.6);
+    padding: 16px 40px;
+    margin: 8px 0;
+    font-size: 1.1em;
+    border-radius: 16px;
+    width: 280px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+button:hover {
+    background: rgba(200,150,255,0.15);
+    border-color: #c77dff;
+}
+
+/* === DECK BUILDER MANUSCRIPT === */
+#screen-deck-builder {
+    background: url('../images/manuscript-deck.jpg') center/cover no-repeat;
+    position: relative;
+}
+
+#screen-deck-builder::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(40,25,10,0.65);
+}
+
+/* === GAME SCREEN MOBILE === */
+#screen-game {
+    background: #0a0710;
+    min-height: 100vh;
+    padding: 0;
+}
+
+.mobile-game-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: rgba(15,10,25,0.95);
+    padding: 12px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    z-index: 100;
+    border-bottom: 1px solid #5c6bc0;
+}
+
+.mobile-game-header .timer {
+    background: #2a1f15;
+    color: #ffcc80;
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-weight: bold;
+    font-size: 1.1em;
+}
+
+.mobile-lanes-container {
+    margin-top: 70px;
+    padding: 12px;
+    padding-bottom: 140px;
+}
+
+.mobile-section {
+    margin-bottom: 16px;
+    background: rgba(20,15,35,0.7);
+    border-radius: 16px;
+    padding: 10px;
+    border: 2px solid #5c6bc0;
+}
+
+.mobile-section.enemy { border-color: #ef9a9a; }
+.mobile-section.player { border-color: #64b5f6; }
+
+.mobile-lanes {
+    display: flex;
+    gap: 10px;
+}
+
+.mobile-lane {
+    flex: 1;
+    background: rgba(10,8,20,0.6);
+    border-radius: 12px;
+    padding: 8px;
+    min-height: 160px;
+}
+
+.mobile-actions {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(15,10,25,0.98);
+    padding: 12px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    z-index: 200;
+    border-top: 2px solid #5c6bc0;
+}
+
+.mobile-actions button {
+    width: 100%;
+    padding: 14px;
+    font-size: 1em;
+    border-radius: 14px;
+}
+
+body.mobile .card {
+    width: 76px;
+    min-height: 102px;
+    font-size: 0.7em;
+}
