@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lily Wars — Карточная игра</title>
+    <link rel="icon" type="image/png" href="images/Favicon.png">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+    <!-- MAIN MENU -->
+    <div id="screen-main" class="screen active">
+        <h1>Lily Wars</h1>
+        <p style="margin-bottom:24px; color:rgba(255,255,255,0.7); font-size:1.1em;">
+            Тактическая карточная игра с 4 фракциями
+        </p>
+
+        <div style="margin: 20px 0 32px;">
+            <h3 style="margin-bottom:14px; color:rgba(255,255,255,0.6); font-size:0.95em; font-weight:normal; letter-spacing:0.06em;">ФРАКЦИИ</h3>
+            <div id="main-faction-logos" class="faction-select" style="justify-content:center; gap:20px;"></div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; align-items:center; gap:4px;">
+            <button id="btn-online">Играть онлайн</button>
+            <button id="btn-my-decks">Мои колоды</button>
+            <button id="btn-bot">Играть с ботом</button>
+            <button id="btn-new-deck">Создать колоду</button>
+        </div>
+    </div>
+
+    <!-- DECK BUILDER -->
+    <div id="screen-deck-builder" class="screen">
+        <h2>Редактор колод</h2>
+
+        <div id="faction-select" class="faction-select"></div>
+
+        <div style="max-width:1100px; margin:16px auto;">
+            <h3 style="text-align:left; margin-left:8px; color:#f5d080; font-size:0.95em; letter-spacing:0.05em; margin-bottom:8px;">
+                ДОСТУПНЫЕ КАРТЫ <span style="color:#888; font-weight:normal; font-size:0.85em;">(нажмите чтобы добавить)</span>
+            </h3>
+            <div id="available-cards"></div>
+
+            <div style="margin:22px 0 8px;">
+                <h3 style="text-align:left; margin-left:8px; color:#a5d6a7; font-size:0.95em; letter-spacing:0.05em; margin-bottom:6px;">ВАША КОЛОДА</h3>
+                <div class="deck-stats">
+                    <span>Карт: <strong id="deck-count">0/25</strong></span>
+                    <span>Влияние: <strong id="influence-count">0/170</strong></span>
+                </div>
+                <div id="deck-cards"></div>
+            </div>
+        </div>
+
+        <div style="text-align:center; margin-top:16px; padding-bottom:30px;">
+            <button id="btn-save-deck">Сохранить колоду</button>
+            <button id="btn-back-to-menu">← Назад в меню</button>
+        </div>
+    </div>
+
+    <!-- MY DECKS -->
+    <div id="screen-my-decks" class="screen">
+        <h2 style="text-align:center; padding-top:20px;">Мои колоды</h2>
+        <div id="decks-list" style="max-width:520px; margin:0 auto;"></div>
+        <div style="text-align:center; margin-top:20px; padding-bottom:30px;">
+            <button id="btn-back-from-decks">← Назад в меню</button>
+        </div>
+    </div>
+
+    <!-- GAME -->
+    <div id="screen-game" class="screen" style="padding:10px;">
+        <div id="game-board"></div>
+    </div>
+
+    <!-- COPY MODAL -->
+    <div id="copy-modal" class="modal">
+        <div class="modal-content">
+            <h3 id="modal-card-name"></h3>
+            <p style="margin-bottom:8px; color:#b39ddb; font-size:0.9em;">Сколько копий добавить?</p>
+            <div id="copy-options" class="copy-options"></div>
+            <button onclick="closeModal()" style="margin-top:12px; border-color:rgba(255,255,255,0.3); color:#aaa; padding:9px 26px; min-width:auto;">
+                Отмена
+            </button>
+        </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <!-- Scripts -->
+    <script src="js/config.js"></script>
+    <script src="js/deckbuilder.js"></script>
+    <script src="js/game.js"></script>
+</body>
+</html>
