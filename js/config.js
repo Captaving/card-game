@@ -20,7 +20,7 @@ const FACTIONS = {
         color: "#1565c0",
         emblem: "images/Рыцари Цветка Лилии.png",
         leaders: [
-            { id: "king_brave", name: "Король Аугуст Роззен Смелый", effect: "При размещении в ряду карты с эффектом размещения активируют умения повторно" },
+            { id: "king_brave", name: "Король Аугуст Роззен Смелый", effect: "Карты с эффектом размещения на поле активируют умения повторно" },
             { id: "king_courage", name: "Король Аугуст Роззен Отважный", effect: "Отменяет умение лидера фракции противника" },
             { id: "king_victory", name: "Король Аугуст Роззен Победитель", effect: "Дает всем вашим картам на поле +1 к силе" }
         ],
@@ -77,7 +77,11 @@ const FACTIONS = {
             { id: "b10", name: "Лич", type: "purple", line: "any", power: 8, influence: 10, maxCopies: 1, effect: "При размещении наносит 2 урона всем картам противника." },
             { id: "b11", name: "Страж Тьмы", type: "gold", line: "any", power: 12, influence: 15, maxCopies: 1, effect: "Великий защитник тьмы." },
             { id: "b12", name: "Вестник Смерти", type: "gold", line: "any", power: 10, influence: 12, maxCopies: 1, effect: "При размещении уничтожает самую слабую карту противника." },
-            { id: "b13", name: "Некромант Тьмы", type: "gold", line: "any", power: 5, influence: 12, maxCopies: 1, effect: "При размещении возвращает 2 карты из отбоя в руку." }
+            { id: "b13", name: "Некромант Тьмы", type: "gold", line: "any", power: 5, influence: 12, maxCopies: 1, effect: "При размещении возвращает 2 карты из отбоя в руку." },
+            // Дополнительные карты
+            { id: "b14", name: "Вампир", type: "purple", line: "left", power: 7, influence: 8, maxCopies: 2, effect: "При уничтожении карты противника восстанавливает 2 силы." },
+            { id: "b15", name: "Скелет-воин", type: "white", line: "right", power: 3, influence: 3, maxCopies: 4, effect: "Базовый скелет." },
+            { id: "b16", name: "Тёмный Рыцарь", type: "purple", line: "any", power: 9, influence: 10, maxCopies: 2, effect: "При размещении наносит 3 урона случайной карте противника." }
         ]
     },
 
